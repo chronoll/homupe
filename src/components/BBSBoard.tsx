@@ -68,7 +68,7 @@ export default function BBSBoard() {
                 const errorData = await response.json();
                 setError(errorData.error || '投稿に失敗しました');
             }
-        } catch (err) {
+        } catch {
             setError('投稿に失敗しました');
         } finally {
             setIsSubmitting(false);
