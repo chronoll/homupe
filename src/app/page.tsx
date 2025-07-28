@@ -1,5 +1,6 @@
 import Image from "next/image";
 import VisitorCounter from "@/components/VisitorCounter";
+import BBSBoard from "@/components/BBSBoard";
 
 // 動的コンテンツ（訪問者数）のため動的レンダリングに変更
 export const dynamic = 'force-dynamic';
@@ -165,45 +166,8 @@ export default function Home() {
           {/* カウンター */}
           <VisitorCounter />
 
-          {/* 今日のコード */}
-          <div className="retro-border" style={{ marginBottom: '20px', padding: '15px' }}>
-            <h3 style={{
-              fontSize: '16px',
-              color: '#228b22',
-              borderBottom: '1px solid #228b22',
-              paddingBottom: '5px',
-              marginBottom: '10px'
-            }}>
-              💻 今日のコード
-            </h3>
-            <div className="retro-inset" style={{
-              fontSize: '12px',
-              fontFamily: 'Courier Prime, monospace',
-              backgroundColor: '#000',
-              color: '#00ff00',
-              padding: '8px',
-              borderRadius: '4px'
-            }}>
-              console.log(&quot;Hello, Gecko!&quot;);
-            </div>
-          </div>
-
-          {/* 天気 */}
-          <div className="retro-border" style={{ padding: '15px' }}>
-            <h3 style={{
-              fontSize: '16px',
-              color: '#4682b4',
-              borderBottom: '1px solid #4682b4',
-              paddingBottom: '5px',
-              marginBottom: '10px'
-            }}>
-              🌤️ 今日の天気
-            </h3>
-            <div className="retro-inset" style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '30px', marginBottom: '5px' }}>☀️</div>
-              <p style={{ fontSize: '14px' }}>晴れ / 22°C</p>
-            </div>
-          </div>
+          {/* BBS掲示板 */}
+          <BBSBoard />
         </div>
       </div>
 
