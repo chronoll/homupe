@@ -1,7 +1,8 @@
 import Image from "next/image";
+import VisitorCounter from "@/components/VisitorCounter";
 
-// 静的生成でパフォーマンス向上
-export const dynamic = 'force-static';
+// 動的コンテンツ（訪問者数）のため動的レンダリングに変更
+export const dynamic = 'force-dynamic';
 
 export default function Home() {
   return (
@@ -163,24 +164,7 @@ export default function Home() {
           </div>
 
           {/* カウンター */}
-          <div className="retro-border" style={{ marginBottom: '20px', padding: '15px', textAlign: 'center' }}>
-            <h3 style={{
-              fontSize: '16px',
-              color: '#dc143c',
-              marginBottom: '10px'
-            }}>
-              👥 訪問者数
-            </h3>
-            <div className="retro-inset" style={{
-              fontSize: '24px',
-              fontFamily: 'Courier Prime, monospace',
-              color: '#000080',
-              fontWeight: 'bold'
-            }}>
-              000123
-            </div>
-            <p style={{ fontSize: '12px', marginTop: '5px' }}>あなたは123人目の訪問者です♪</p>
-          </div>
+          <VisitorCounter />
 
           {/* 今日のコード */}
           <div className="retro-border" style={{ marginBottom: '20px', padding: '15px' }}>
