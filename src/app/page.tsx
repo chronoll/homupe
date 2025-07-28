@@ -201,7 +201,7 @@ export default function Home() {
               padding: '8px',
               borderRadius: '4px'
             }}>
-              console.log("Hello, Gecko!");
+              console.log(&quot;Hello, Gecko!&quot;);
             </div>
           </div>
 
