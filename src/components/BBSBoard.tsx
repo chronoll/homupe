@@ -21,10 +21,14 @@ export default function BBSBoard() {
     const fetchPosts = async () => {
         try {
             const response = await fetch('/api/bbs');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
             const data = await response.json();
-            setPosts(data.posts);
+            setPosts(data.posts || []);
         } catch (err) {
             console.error('Error fetching posts:', err);
+            setError('投稿の取得に失敗しました');
         } finally {
             setIsLoading(false);
         }

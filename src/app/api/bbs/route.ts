@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { kv } from '@vercel/kv';
+import { createClient } from 'redis';
 
 interface BBSPost {
     id: number;
@@ -10,27 +10,54 @@ interface BBSPost {
 
 const BBS_POSTS_KEY = 'bbs_posts';
 
-// 投稿を取得
+function createRedisClient() {
+    if (!process.env.REDIS_URL) {
+        throw new Error('REDIS_URL environment variable is not set');
+    }
+
+    return createClient({
+        url: process.env.REDIS_URL,
+    });
+}
+
 async function getPosts(): Promise<BBSPost[]> {
+    if (!process.env.REDIS_URL) {
+        console.log('Redis not available, using fallback');
+        return [];
+    }
+
+    const client = createRedisClient();
+
     try {
-        const posts = await kv.get<BBSPost[]>(BBS_POSTS_KEY);
-        return posts || [];
+        await client.connect();
+        const postsJson = await client.get(BBS_POSTS_KEY);
+        return postsJson ? JSON.parse(postsJson) : [];
     } catch (error) {
         console.error('Error reading BBS posts:', error);
         return [];
+    } finally {
+        await client.quit();
     }
 }
 
-// 投稿を保存
 async function savePosts(posts: BBSPost[]): Promise<void> {
+    if (!process.env.REDIS_URL) {
+        console.log('Redis not available, cannot save posts');
+        return;
+    }
+
+    const client = createRedisClient();
+
     try {
-        await kv.set(BBS_POSTS_KEY, posts);
+        await client.connect();
+        await client.set(BBS_POSTS_KEY, JSON.stringify(posts));
     } catch (error) {
         console.error('Error saving BBS posts:', error);
+    } finally {
+        await client.quit();
     }
 }
 
-// 投稿を追加
 async function addPost(name: string, message: string): Promise<BBSPost> {
     const posts = await getPosts();
     const newPost: BBSPost = {
@@ -40,9 +67,8 @@ async function addPost(name: string, message: string): Promise<BBSPost> {
         timestamp: new Date().toLocaleString('ja-JP')
     };
 
-    posts.unshift(newPost); // 新しい投稿を先頭に追加
+    posts.unshift(newPost);
 
-    // 最新20件のみ保持
     if (posts.length > 20) {
         posts.splice(20);
     }
@@ -52,8 +78,13 @@ async function addPost(name: string, message: string): Promise<BBSPost> {
 }
 
 export async function GET() {
-    const posts = await getPosts();
-    return NextResponse.json({ posts });
+    try {
+        const posts = await getPosts();
+        return NextResponse.json({ posts });
+    } catch (error) {
+        console.error('GET /api/bbs error:', error);
+        return NextResponse.json({ error: 'Failed to get posts' }, { status: 500 });
+    }
 }
 
 export async function POST(request: NextRequest) {
@@ -71,7 +102,7 @@ export async function POST(request: NextRequest) {
         const newPost = await addPost(name, message);
         return NextResponse.json({ post: newPost });
     } catch (error) {
-        console.error('Error adding post:', error);
+        console.error('POST /api/bbs error:', error);
         return NextResponse.json({ error: '投稿に失敗しました' }, { status: 500 });
     }
 }
