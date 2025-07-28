@@ -1,26 +1,176 @@
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&family=Courier+Prime:wght@400;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --retro-bg: #ffffe0;
+  --retro-text: #000080;
+  --retro-link: #0000ff;
+  --retro-visited: #800080;
+  --retro-border: #c0c0c0;
+  --retro-shadow: #808080;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--retro-bg);
+  background-image:
+    radial-gradient(circle at 20px 20px, #ff69b4 2px, transparent 2px),
+    radial-gradient(circle at 60px 60px, #00ffff 2px, transparent 2px);
+  background-size: 80px 80px;
+  color: var(--retro-text);
+  font-family: 'Comic Neue', 'Comic Sans MS', cursive;
+  margin: 0;
+  padding: 20px;
+  min-height: 100vh;
+}
+
+/* 90年代風のボーダーエフェクト */
+.retro-border {
+  border: 3px outset var(--retro-border);
+  background: var(--retro-bg);
+  box-shadow: 2px 2px 4px var(--retro-shadow);
+}
+
+.retro-inset {
+  border: 2px inset var(--retro-border);
+  background: #f0f0f0;
+  padding: 10px;
+}
+
+/* 90年代風のリンクスタイル */
+a {
+  color: var(--retro-link);
+  text-decoration: underline;
+}
+
+a:visited {
+  color: var(--retro-visited);
+}
+
+a:hover {
+  background-color: yellow;
+  text-decoration: none;
+}
+
+/* 90年代風のテーブルスタイル */
+table {
+  border-collapse: separate;
+  border-spacing: 2px;
+  border: 2px outset var(--retro-border);
+  background: var(--retro-bg);
+}
+
+td,
+th {
+  border: 1px inset var(--retro-border);
+  padding: 5px;
+  background: #f0f0f0;
+}
+
+/* 90年代風のボタンスタイル */
+.retro-button {
+  background: var(--retro-border);
+  border: 2px outset var(--retro-border);
+  padding: 5px 15px;
+  font-family: inherit;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.retro-button:hover {
+  background: #e0e0e0;
+}
+
+.retro-button:active {
+  border: 2px inset var(--retro-border);
+}
+
+/* 点滅アニメーション */
+@keyframes blink {
+
+  0%,
+  50% {
+    opacity: 1;
+  }
+
+  51%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.blink {
+  animation: blink 1s infinite;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+  body {
+    padding: 10px;
+    background-size: 40px 40px;
+  }
+
+  .retro-border {
+    border-width: 2px;
+  }
+}
+
+/* 追加のレスポンシブ対応 */
+@media (max-width: 768px) {
+
+  /* モバイルでグリッドを縦並びに */
+  .mobile-stack {
+    display: block !important;
+  }
+
+  .mobile-stack>* {
+    margin-bottom: 20px;
+  }
+
+  /* テーブルをモバイル対応 */
+  table {
+    font-size: 14px;
+  }
+
+  td,
+  th {
+    padding: 3px;
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+    padding: 5px;
+    font-size: 14px;
+  }
+
+  h1 {
+    font-size: 20px !important;
+  }
+
+  h2 {
+    font-size: 16px !important;
+  }
+
+  h3 {
+    font-size: 14px !important;
+  }
+}
+
+/* アイコン用のレスポンシブ対応 */
+@media (max-width: 600px) {
+  .header-icons {
+    flex-direction: column;
+    gap: 10px !important;
+  }
+
+  .profile-layout {
+    flex-direction: column !important;
+    align-items: center !important;
+  }
+
+  .profile-layout .retro-inset {
+    margin-bottom: 15px;
+  }
 }
