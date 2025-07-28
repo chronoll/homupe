@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&family=Courier+Prime:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&family=Courier+Prime:wght@400;700&family=Noto+Sans+JP:wght@400;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -19,7 +19,8 @@ body {
     radial-gradient(circle at 60px 60px, #00ffff 2px, transparent 2px);
   background-size: 80px 80px;
   color: var(--retro-text);
-  font-family: 'Comic Neue', 'Comic Sans MS', cursive;
+  /* 平成時代によく使われていたフォントスタック */
+  font-family: 'MS UI Gothic', 'MS Gothic', 'Hiragino Kaku Gothic Pro', 'Meiryo', 'Noto Sans JP', sans-serif;
   margin: 0;
   padding: 20px;
   min-height: 100vh;
@@ -76,6 +77,30 @@ th {
   font-family: inherit;
   cursor: pointer;
   font-size: 14px;
+}
+
+/* 平成時代のフォントスタイル */
+.heisei-title {
+  font-family: 'MS UI Gothic', 'MS Gothic', 'Hiragino Kaku Gothic Pro', 'Meiryo', 'Noto Sans JP', sans-serif;
+  font-weight: bold;
+  letter-spacing: 0.05em;
+}
+
+.heisei-text {
+  font-family: 'MS UI Gothic', 'MS Gothic', 'Hiragino Kaku Gothic Pro', 'Meiryo', 'Noto Sans JP', sans-serif;
+  line-height: 1.6;
+}
+
+.heisei-mono {
+  font-family: 'MS Gothic', 'Courier New', 'Courier Prime', monospace;
+  letter-spacing: 0.1em;
+}
+
+/* 当時よく使われた装飾テキスト */
+.retro-fancy {
+  font-family: 'MS UI Gothic', 'MS Gothic', serif;
+  text-shadow: 1px 1px 2px #808080;
+  font-weight: bold;
 }
 
 .retro-button:hover {

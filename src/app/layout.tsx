@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "🌸 ようこそ！私のホームページへ 🌸",
+  title: "☆ ようこそ！私のホームページへ ☆",
   description: "90年代風レトロなホームページです♪",
 };
 

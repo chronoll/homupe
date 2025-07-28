@@ -81,7 +81,7 @@ export default function BBSBoard() {
 
     return (
         <div className="retro-border" style={{ marginBottom: '20px', padding: '15px' }}>
-            <h3 style={{
+            <h3 className="heisei-title" style={{
                 fontSize: '16px',
                 color: '#ff6347',
                 borderBottom: '1px solid #ff6347',

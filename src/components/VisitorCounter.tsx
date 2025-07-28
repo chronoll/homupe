@@ -55,16 +55,15 @@ export default function VisitorCounter() {
     if (isLoading) {
         return (
             <div className="retro-border" style={{ marginBottom: '20px', padding: '15px', textAlign: 'center' }}>
-                <h3 style={{
+                <h3 className="heisei-title" style={{
                     fontSize: '16px',
                     color: '#dc143c',
                     marginBottom: '10px'
                 }}>
                     ◎ 訪問者数
                 </h3>
-                <div className="retro-inset" style={{
+                <div className="retro-inset heisei-mono" style={{
                     fontSize: '24px',
-                    fontFamily: 'Courier Prime, monospace',
                     color: '#000080',
                     fontWeight: 'bold'
                 }}>
@@ -77,16 +76,15 @@ export default function VisitorCounter() {
 
     return (
         <div className="retro-border" style={{ marginBottom: '20px', padding: '15px', textAlign: 'center' }}>
-            <h3 style={{
+            <h3 className="heisei-title" style={{
                 fontSize: '16px',
                 color: '#dc143c',
                 marginBottom: '10px'
             }}>
                 ◎ 訪問者数
             </h3>
-            <div className="retro-inset" style={{
+            <div className="retro-inset heisei-mono" style={{
                 fontSize: '24px',
-                fontFamily: 'Courier Prime, monospace',
                 color: '#000080',
                 fontWeight: 'bold'
             }}>

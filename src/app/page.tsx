@@ -22,7 +22,7 @@ export default function Home() {
               boxShadow: '2px 2px 4px #808080'
             }}
           />
-          <h1 style={{
+          <h1 className="heisei-title" style={{
             fontSize: '28px',
             color: '#ff1493',
             textShadow: '2px 2px 4px #808080',
@@ -54,7 +54,7 @@ export default function Home() {
         <div>
           {/* プロフィール */}
           <div className="retro-border" style={{ marginBottom: '20px', padding: '15px' }}>
-            <h2 style={{
+            <h2 className="heisei-title" style={{
               fontSize: '20px',
               color: '#4169e1',
               borderBottom: '2px solid #4169e1',
@@ -76,7 +76,7 @@ export default function Home() {
 
               {/* プロフィール情報 */}
               <div style={{ flex: 1, minWidth: '200px' }}>
-                <table style={{ width: '100%' }}>
+                <table className="heisei-text" style={{ width: '100%' }}>
                   <tbody>
                     <tr>
                       <td style={{ fontWeight: 'bold', width: '80px' }}>なまえ</td>
@@ -98,7 +98,7 @@ export default function Home() {
 
           {/* 最新情報 */}
           <div className="retro-border" style={{ marginBottom: '20px', padding: '15px' }}>
-            <h2 style={{
+            <h2 className="heisei-title" style={{
               fontSize: '20px',
               color: '#32cd32',
               borderBottom: '2px solid #32cd32',
@@ -115,7 +115,7 @@ export default function Home() {
 
           {/* 作品紹介 */}
           <div className="retro-border" style={{ marginBottom: '20px', padding: '15px' }}>
-            <h2 style={{
+            <h2 className="heisei-title" style={{
               fontSize: '20px',
               color: '#ff4500',
               borderBottom: '2px solid #ff4500',
@@ -147,7 +147,7 @@ export default function Home() {
         <div>
           {/* リンク集 */}
           <div className="retro-border" style={{ marginBottom: '20px', padding: '15px' }}>
-            <h3 style={{
+            <h3 className="heisei-title" style={{
               fontSize: '16px',
               color: '#8a2be2',
               borderBottom: '1px solid #8a2be2',
