@@ -187,14 +187,6 @@ export default function Home() {
         <p style={{ fontSize: '12px', color: '#666', margin: '0' }}>
           © 2025 chronoll. All rights reserved.
         </p>
-        <div style={{ marginTop: '10px' }}>
-          <button className="retro-button" style={{ marginRight: '10px' }}>
-            ▼ メール
-          </button>
-          <button className="retro-button">
-            ▲ 更新
-          </button>
-        </div>
       </div>
     </div>
   );
