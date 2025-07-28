@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { kv } from '@vercel/kv';
 
 interface BBSPost {
     id: number;
@@ -9,27 +8,13 @@ interface BBSPost {
     timestamp: string;
 }
 
-const BBS_FILE = path.join(process.cwd(), 'data', 'bbs-posts.json');
-
-// データファイルを初期化
-function initializeBBSFile() {
-    const dataDir = path.dirname(BBS_FILE);
-
-    if (!fs.existsSync(dataDir)) {
-        fs.mkdirSync(dataDir, { recursive: true });
-    }
-
-    if (!fs.existsSync(BBS_FILE)) {
-        fs.writeFileSync(BBS_FILE, JSON.stringify([]));
-    }
-}
+const BBS_POSTS_KEY = 'bbs_posts';
 
 // 投稿を取得
-function getPosts(): BBSPost[] {
+async function getPosts(): Promise<BBSPost[]> {
     try {
-        initializeBBSFile();
-        const data = fs.readFileSync(BBS_FILE, 'utf8');
-        return JSON.parse(data);
+        const posts = await kv.get<BBSPost[]>(BBS_POSTS_KEY);
+        return posts || [];
     } catch (error) {
         console.error('Error reading BBS posts:', error);
         return [];
@@ -37,18 +22,17 @@ function getPosts(): BBSPost[] {
 }
 
 // 投稿を保存
-function savePosts(posts: BBSPost[]): void {
+async function savePosts(posts: BBSPost[]): Promise<void> {
     try {
-        initializeBBSFile();
-        fs.writeFileSync(BBS_FILE, JSON.stringify(posts, null, 2));
+        await kv.set(BBS_POSTS_KEY, posts);
     } catch (error) {
         console.error('Error saving BBS posts:', error);
     }
 }
 
 // 投稿を追加
-function addPost(name: string, message: string): BBSPost {
-    const posts = getPosts();
+async function addPost(name: string, message: string): Promise<BBSPost> {
+    const posts = await getPosts();
     const newPost: BBSPost = {
         id: Date.now(),
         name: name.trim() || '名無しさん',
@@ -63,12 +47,12 @@ function addPost(name: string, message: string): BBSPost {
         posts.splice(20);
     }
 
-    savePosts(posts);
+    await savePosts(posts);
     return newPost;
 }
 
 export async function GET() {
-    const posts = getPosts();
+    const posts = await getPosts();
     return NextResponse.json({ posts });
 }
 
@@ -84,7 +68,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'メッセージが長すぎます（200文字以内）' }, { status: 400 });
         }
 
-        const newPost = addPost(name, message);
+        const newPost = await addPost(name, message);
         return NextResponse.json({ post: newPost });
     } catch (error) {
         console.error('Error adding post:', error);
