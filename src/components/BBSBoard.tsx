@@ -88,7 +88,7 @@ export default function BBSBoard() {
                 paddingBottom: '5px',
                 marginBottom: '10px'
             }}>
-                💬 ひとこと掲示板
+                ◆ ひとこと掲示板
             </h3>
 
             {/* 投稿フォーム */}

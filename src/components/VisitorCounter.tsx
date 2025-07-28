@@ -60,7 +60,7 @@ export default function VisitorCounter() {
                     color: '#dc143c',
                     marginBottom: '10px'
                 }}>
-                    👥 訪問者数
+                    ◎ 訪問者数
                 </h3>
                 <div className="retro-inset" style={{
                     fontSize: '24px',
@@ -82,7 +82,7 @@ export default function VisitorCounter() {
                 color: '#dc143c',
                 marginBottom: '10px'
             }}>
-                👥 訪問者数
+                ◎ 訪問者数
             </h3>
             <div className="retro-inset" style={{
                 fontSize: '24px',

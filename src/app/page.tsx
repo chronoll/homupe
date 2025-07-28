@@ -28,7 +28,7 @@ export default function Home() {
             textShadow: '2px 2px 4px #808080',
             margin: '0'
           }}>
-            🌸 ようこそ！私のホームページへ 🌸
+            ☆ ようこそ！私のホームページへ ☆
           </h1>
           <Image
             src="/images/gecko.png"
@@ -61,7 +61,7 @@ export default function Home() {
               paddingBottom: '5px',
               marginBottom: '15px'
             }}>
-              💫 プロフィール 💫
+              ◆ プロフィール ◆
             </h2>
             <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
               <div style={{ flexShrink: 0 }}>
@@ -105,7 +105,7 @@ export default function Home() {
               paddingBottom: '5px',
               marginBottom: '15px'
             }}>
-              🆕 最新情報 🆕
+              ■ 最新情報 ■
             </h2>
             <div className="retro-inset">
               <p><strong>2025/04/01</strong> - 社会に出る</p>
@@ -122,7 +122,7 @@ export default function Home() {
               paddingBottom: '5px',
               marginBottom: '15px'
             }}>
-              🖼️ ギャラリー 🖼️
+              ◇ ギャラリー ◇
             </h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '15px' }}>
               <Image
@@ -154,12 +154,12 @@ export default function Home() {
               paddingBottom: '5px',
               marginBottom: '10px'
             }}>
-              🔗 リンク集
+              ● リンク集
             </h3>
             <div style={{ fontSize: '14px', lineHeight: '1.8' }}>
-              <p><a href="https://x.com/chronoll" target="_blank" rel="noopener noreferrer">🐦 X</a></p>
-              <p><a href="https://www.instagram.com/chronoll" target="_blank" rel="noopener noreferrer">📷 Instagram</a></p>
-              <p><a href="https://github.com/chronoll" target="_blank" rel="noopener noreferrer">💻 GitHub</a></p>
+              <p><a href="https://x.com/chronoll" target="_blank" rel="noopener noreferrer">→ X</a></p>
+              <p><a href="https://www.instagram.com/chronoll" target="_blank" rel="noopener noreferrer">→ Instagram</a></p>
+              <p><a href="https://github.com/chronoll" target="_blank" rel="noopener noreferrer">→ GitHub</a></p>
             </div>
           </div>
 
@@ -174,7 +174,7 @@ export default function Home() {
       {/* フッター */}
       <div className="retro-border" style={{ marginTop: '20px', padding: '15px', textAlign: 'center' }}>
         <p style={{ fontSize: '14px', margin: '0 0 10px 0' }}>
-          🌟 来てくれてありがとう 🌟
+          ☆ 来てくれてありがとう ☆
         </p>
         <p style={{
           fontSize: '12px',
@@ -189,10 +189,10 @@ export default function Home() {
         </p>
         <div style={{ marginTop: '10px' }}>
           <button className="retro-button" style={{ marginRight: '10px' }}>
-            📧 メール
+            ▼ メール
           </button>
           <button className="retro-button">
-            🔄 更新
+            ▲ 更新
           </button>
         </div>
       </div>
