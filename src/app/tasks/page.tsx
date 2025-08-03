@@ -17,13 +17,28 @@ export default function TasksPage() {
     setIsLoading(false)
   }, [])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (password === 'nobara') {
-      setIsAuthenticated(true)
-      sessionStorage.setItem('tasksAuth', 'true')
-    } else {
-      alert('パスワードが違います')
+    
+    try {
+      const response = await fetch('/api/tasks/auth', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password }),
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setIsAuthenticated(true)
+        sessionStorage.setItem('tasksAuth', 'true')
+      } else {
+        alert('パスワードが違います')
+      }
+    } catch (error) {
+      alert('エラーが発生しました')
     }
   }
 
