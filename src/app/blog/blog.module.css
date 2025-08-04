@@ -1,0 +1,83 @@
+/* Modern Blog Styles */
+
+/* グラデーションテキスト */
+.gradient-text {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* カード効果 */
+.blog-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.blog-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* タグのホバー効果 */
+.tag {
+  transition: all 0.2s ease;
+}
+
+.tag:hover {
+  transform: scale(1.05);
+}
+
+/* 読了時間バッジ */
+.reading-time {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* スケルトンローディング */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* カテゴリーバッジの色 */
+.category-tech {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.category-design {
+  background-color: #fce7f3;
+  color: #be185d;
+}
+
+.category-lifestyle {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+/* ダークモード対応 */
+@media (prefers-color-scheme: dark) {
+  .blog-card {
+    background-color: #1e293b;
+    color: #f1f5f9;
+  }
+  
+  .blog-card:hover {
+    background-color: #334155;
+  }
+}
