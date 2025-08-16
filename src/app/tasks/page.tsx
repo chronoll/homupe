@@ -9,6 +9,8 @@ import CategoryModal from '@/components/CategoryModal';
 import FloatingCreateButton from '@/components/FloatingCreateButton';
 import { requestNotificationPermission } from '@/lib/notifications';
 
+import AppHeader from '@/components/AppHeader';
+
 import { AppShell, Burger, Group, Title, Button, Container, Text, rem } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 
@@ -22,6 +24,12 @@ const TasksPage = () => {
   const [editingTask, setEditingTask] = useState<Partial<Task> | undefined>(undefined);
   const [selectedCategoryIdForNewTask, setSelectedCategoryIdForNewTask] = useState<string | undefined>(undefined);
   const [opened, { toggle }] = useDisclosure();
+
+  const uncategorizedTasks = tasks.filter(task => !task.categoryId);
+  const categorizedTasks = categories.map(category => ({
+    category,
+    tasks: tasks.filter(task => task.categoryId === category.id),
+  }));
 
   const fetchTasksAndCategories = useCallback(async () => {
     try {
@@ -238,20 +246,6 @@ const TasksPage = () => {
     setIsCategoryModalOpen(true);
   };
 
-  if (loading) {
-    return <div className="container mx-auto p-4">読み込み中...</div>;
-  }
-
-  if (error) {
-    return <div className="container mx-auto p-4 text-red-600">エラー: {error}</div>;
-  }
-
-  const uncategorizedTasks = tasks.filter(task => !task.categoryId);
-  const categorizedTasks = categories.map(category => ({
-    category,
-    tasks: tasks.filter(task => task.categoryId === category.id),
-  }));
-
   return (
     <AppShell
       header={{ height: rem(60) }}
@@ -259,11 +253,7 @@ const TasksPage = () => {
       padding="md"
     >
       <AppShell.Header>
-        <Group h="100%" px="md">
-          <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
-          <Title order={1} size="h3">タスク管理</Title>
-          <Button onClick={openCreateCategoryModal} ml="auto">+ カテゴリ作成</Button>
-        </Group>
+        <AppHeader onAddCategory={openCreateCategoryModal} />
       </AppShell.Header>
 
       <AppShell.Navbar p="md">
