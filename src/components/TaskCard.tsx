@@ -62,19 +62,21 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({
         <Text c="dimmed" size="sm" mb="xs">{task.description}</Text>
       )}
 
-      <Stack gap={4} mt="sm">
-        {task.targetTime && (
-          <Text size="sm" c="dimmed">
-            目標時間: {formatElapsedTime(task.targetTime)}
-          </Text>
-        )}
-        {task.deadline && (
-          <Text size="sm" className={deadlineClass}>
-            期限: {deadlineText}
-          </Text>
-        )}
+      <Group justify="space-between" mt="sm" align="baseline">
         <Timer task={task} onStart={onStart} onStop={onStop} />
-      </Stack>
+        {task.targetTime && (
+            <div>
+                <Text size="xs" c="dimmed" ta="right">目標時間</Text>
+                <Text size="lg" c="dimmed">{formatElapsedTime(task.targetTime)}</Text>
+            </div>
+        )}
+      </Group>
+
+      {task.deadline && (
+        <Text size="sm" className={deadlineClass} mt="xs">
+          期限: {deadlineText}
+        </Text>
+      )}
     </Card>
   );
 });
