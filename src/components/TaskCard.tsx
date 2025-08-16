@@ -63,6 +63,11 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({
       )}
 
       <Stack gap={4} mt="sm">
+        {task.targetTime && (
+          <Text size="sm" c="dimmed">
+            目標時間: {task.targetTime}分
+          </Text>
+        )}
         {task.deadline && (
           <Text size="sm" className={deadlineClass}>
             期限: {deadlineText}
