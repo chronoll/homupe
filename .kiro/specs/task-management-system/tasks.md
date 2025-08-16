@@ -31,25 +31,25 @@
 - [ ] 3.1 タスク管理APIを実装
   - GET /api/tasks - タスク一覧取得
   - POST /api/tasks - タスク作成
-  - PUT /api/tasks/[id] - タスク更新
-  - DELETE /api/tasks/[id] - タスク削除
+  - PUT /api/tasks?id=[id] - タスク更新
+  - DELETE /api/tasks?id=[id] - タスク削除
   - _要件: 8.1, 8.3, 9.2, 9.5_
 
 - [ ] 3.2 タスク完了とタイマーAPIを実装
-  - POST /api/tasks/[id]/complete - タスク完了
-  - POST /api/tasks/[id]/timer/start - タイマー開始
-  - POST /api/tasks/[id]/timer/stop - タイマー停止
+  - POST /api/tasks?action=complete&id=[id] - タスク完了
+  - POST /api/tasks?action=startTimer&id=[id] - タイマー開始
+  - POST /api/tasks?action=stopTimer&id=[id] - タイマー停止
   - _要件: 1.2, 1.3, 7.1, 7.2_
 
 - [ ] 3.3 カテゴリ管理APIを実装
   - GET /api/categories - カテゴリ一覧取得
   - POST /api/categories - カテゴリ作成
-  - PUT /api/categories/[id] - カテゴリ更新
-  - DELETE /api/categories/[id] - カテゴリ削除
+  - PUT /api/categories?id=[id] - カテゴリ更新
+  - DELETE /api/categories?id=[id] - カテゴリ削除
   - _要件: 5.2, 5.4_
 
 - [ ] 3.4 タスク順序管理APIを実装
-  - PUT /api/tasks/reorder - タスク順序更新
+  - PUT /api/tasks?action=reorder - タスク順序更新
   - カテゴリ内でのドラッグ&ドロップ順序変更
   - _要件: 4.2, 4.4_
 
