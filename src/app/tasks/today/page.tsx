@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -19,8 +20,9 @@ const TodayTasksPage = () => {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Partial<Task> | undefined>(undefined);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
 
-  const [workTime, setWorkTime] = useState(0); // in minutes
+  const [workTime, setWorkTime] = useState(0);
   const [isEditingWorkTime, setIsEditingWorkTime] = useState(false);
   const [workTimeInput, setWorkTimeInput] = useState("00:00");
 
@@ -39,10 +41,19 @@ const TodayTasksPage = () => {
       const fetchedCategories: Category[] = await categoriesRes.json();
 
       const today = new Date();
-      const todayDateString = today.toISOString().split('T')[0];
+      today.setHours(23, 59, 59, 999);
 
       const filteredTasks = fetchedTasks.filter(task => {
-        return task.deadline?.date === todayDateString && !task.completedAt;
+        if (!task.deadline?.date || task.completedAt) return false;
+        const deadlineDate = new Date(task.deadline.date);
+        return deadlineDate <= today;
+      });
+
+      filteredTasks.sort((a, b) => {
+        const deadlineA = a.deadline?.date ? new Date(a.deadline.date + (a.deadline.time || '')).getTime() : Infinity;
+        const deadlineB = b.deadline?.date ? new Date(b.deadline.date + (b.deadline.time || '')).getTime() : Infinity;
+        if (deadlineA !== deadlineB) return deadlineA - deadlineB;
+        return (a.order || 0) - (b.order || 0);
       });
 
       setTasks(filteredTasks);
@@ -72,6 +83,57 @@ const TodayTasksPage = () => {
     fetchWorkTime();
     requestNotificationPermission();
   }, [fetchTasksAndCategories, fetchWorkTime]);
+
+  const handleReorderTasks = async (taskIds: string[]) => {
+    const originalTasks = [...tasks];
+    const reorderedTasks = taskIds.map(id => tasks.find(t => t.id === id)!);
+    const otherTasks = tasks.filter(t => !taskIds.includes(t.id));
+    const newTasks = [...reorderedTasks, ...otherTasks];
+    setTasks(newTasks);
+
+    try {
+      const res = await fetch('/api/tasks?action=reorder', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskIds }),
+      });
+      if (!res.ok) throw new Error(`Failed to reorder tasks: ${res.statusText}`);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'An unknown error occurred');
+      setTasks(originalTasks);
+    }
+  };
+
+  const handleDragStart = (id: string) => {
+    setDraggingId(id);
+  };
+
+  const handleDragEnter = (targetId: string) => {
+    if (draggingId === null || draggingId === targetId) return;
+
+    const draggingTask = tasks.find(t => t.id === draggingId);
+    const targetTask = tasks.find(t => t.id === targetId);
+
+    if (draggingTask?.deadline?.date !== targetTask?.deadline?.date || draggingTask?.deadline?.time !== targetTask?.deadline?.time) {
+        return;
+    }
+
+    const newTasks = [...tasks];
+    const draggingIndex = newTasks.findIndex((task) => task.id === draggingId);
+    const targetIndex = newTasks.findIndex((task) => task.id === targetId);
+
+    if (draggingIndex !== -1 && targetIndex !== -1) {
+      const [removed] = newTasks.splice(draggingIndex, 1);
+      newTasks.splice(targetIndex, 0, removed);
+      setTasks(newTasks);
+    }
+  };
+
+  const handleDrop = () => {
+    if (draggingId === null) return;
+    handleReorderTasks(tasks.map(t => t.id));
+    setDraggingId(null);
+  };
 
   const handleSaveWorkTime = async () => {
     const parts = workTimeInput.split(':').map(p => parseInt(p, 10));
@@ -240,18 +302,51 @@ const TodayTasksPage = () => {
           {error && <Text c="red">エラー: {error}</Text>}
 
           {!loading && !error && tasks.length === 0 ? (
-            <Text c="dimmed">今日のタスクはありません。</Text>
+            <Text c="dimmed">対象のタスクはありません。</Text>
           ) : (
-            tasks.map((task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                onComplete={handleCompleteTask}
-                onDelete={handleDeleteTask}
-                onStart={handleStartTimer}
-                onStop={handleStopTimer}
-                categoryName={categories.find(c => c.id === task.categoryId)?.name}
-              />
+            Object.entries(
+              tasks.reduce((acc, task) => {
+                const deadlineKey = `${task.deadline?.date || 'no-deadline'}_${task.deadline?.time || 'no-time'}`;
+                if (!acc[deadlineKey]) {
+                  acc[deadlineKey] = [];
+                }
+                acc[deadlineKey].push(task);
+                return acc;
+              }, {} as Record<string, Task[]>)
+            )
+            .sort(([keyA], [keyB]) => {
+                if (keyA.startsWith('no-deadline')) return 1;
+                if (keyB.startsWith('no-deadline')) return -1;
+                return new Date(keyA.replace('_no-time','')).getTime() - new Date(keyB.replace('_no-time','')).getTime();
+            })
+            .map(([deadlineKey, tasksInGroup]) => (
+              <div key={deadlineKey} onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
+                <Title order={4} my="md">
+                  {deadlineKey.startsWith('no-deadline')
+                    ? '期限なし'
+                    : new Date(deadlineKey.split('_')[0]).toLocaleDateString('ja-JP', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      })}
+                </Title>
+                {tasksInGroup.map((task) => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    onComplete={handleCompleteTask}
+                    onDelete={handleDeleteTask}
+                    onStart={handleStartTimer}
+                    onStop={handleStopTimer}
+                    categoryName={categories.find(c => c.id === task.categoryId)?.name}
+                    draggable
+                    onDragStart={() => handleDragStart(task.id)}
+                    onDragEnter={() => handleDragEnter(task.id)}
+                    isDragging={draggingId === task.id}
+                  />
+                ))}
+              </div>
             ))
           )}
         </Container>
