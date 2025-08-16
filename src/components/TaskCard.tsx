@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Task } from '@/lib/types';
-import { formatDeadline } from '@/lib/utils';
+import { formatDeadline, formatElapsedTime } from '@/lib/utils';
 import Timer from './Timer';
 import { Card, Group, Text, Button, Stack } from '@mantine/core';
 
@@ -65,7 +65,7 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({
       <Stack gap={4} mt="sm">
         {task.targetTime && (
           <Text size="sm" c="dimmed">
-            目標時間: {task.targetTime}分
+            目標時間: {formatElapsedTime(task.targetTime)}
           </Text>
         )}
         {task.deadline && (
