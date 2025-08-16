@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Task } from '@/lib/types';
 import { formatDeadline, formatElapsedTime } from '@/lib/utils';
@@ -15,6 +16,7 @@ interface TaskCardProps {
   onDragEnter?: () => void;
   onDragLeave?: () => void;
   isDragging?: boolean;
+  categoryName?: string;
 }
 
 const TaskCard: React.FC<TaskCardProps> = React.memo(({
@@ -28,6 +30,7 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({
   onDragEnter,
   onDragLeave,
   isDragging = false,
+  categoryName,
 }) => {
   const { text: deadlineText, className: deadlineClass } = formatDeadline(task.deadline);
 
@@ -95,8 +98,11 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({
             <Grid.Col span="auto">
                 <Stack gap={0}>
                     <Text fw={500} size="lg" truncate>{task.title}</Text>
+                    {categoryName && (
+                        <Text c="dimmed" size="xs">{categoryName}</Text>
+                    )}
                     {task.description && (
-                        <Text c="dimmed" size="sm" truncate>{task.description}</Text>
+                        <Text c="dimmed" size="sm" truncate mt={categoryName ? 4 : 0}>{task.description}</Text>
                     )}
                 </Stack>
             </Grid.Col>

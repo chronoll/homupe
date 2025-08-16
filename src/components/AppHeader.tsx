@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -19,9 +18,14 @@ const AppHeader: React.FC<AppHeaderProps> = React.memo(({
     <Group h="100%" px="md">
       <Title order={1} size="h3">タスク管理</Title>
       <Group ml="auto" gap="md">
+        <Link href="/tasks/today" passHref>
+          <Button variant={pathname === '/tasks/today' ? 'filled' : 'light'}>
+            今日のタスク
+          </Button>
+        </Link>
         <Link href="/tasks" passHref>
           <Button variant={pathname === '/tasks' ? 'filled' : 'light'}>
-            アクティブタスク
+            カテゴリ別タスク
           </Button>
         </Link>
         <Link href="/tasks/finished" passHref>
