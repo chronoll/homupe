@@ -239,18 +239,6 @@ const TasksPage = () => {
 
           {!loading && !error && (
             <>
-              {uncategorizedTasks.length > 0 && (
-                <CategorySection
-                  tasks={uncategorizedTasks}
-                  onCompleteTask={handleCompleteTask}
-                  onDeleteTask={handleDeleteTask}
-                  onStartTimer={handleStartTimer}
-                  onStopTimer={handleStopTimer}
-                  onCreateTask={openCreateTaskModal}
-                  onReorderTasks={handleReorderTasks}
-                />
-              )}
-
               {categorizedTasks.map(({ category, tasks: catTasks }) => (
                 <CategorySection
                   key={category.id}
@@ -264,6 +252,17 @@ const TasksPage = () => {
                   onReorderTasks={handleReorderTasks}
                 />
               ))}
+              {uncategorizedTasks.length > 0 && (
+                <CategorySection
+                  tasks={uncategorizedTasks}
+                  onCompleteTask={handleCompleteTask}
+                  onDeleteTask={handleDeleteTask}
+                  onStartTimer={handleStartTimer}
+                  onStopTimer={handleStopTimer}
+                  onCreateTask={openCreateTaskModal}
+                  onReorderTasks={handleReorderTasks}
+                />
+              )}
             </>
           )}
         </Container>
