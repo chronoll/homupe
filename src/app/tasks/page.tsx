@@ -72,7 +72,18 @@ const TasksPage = () => {
         body: JSON.stringify(taskData),
       });
       if (!res.ok) throw new Error(`Failed to save task: ${res.statusText}`);
-      fetchTasksAndCategories();
+
+      const savedTask: Task = await res.json();
+
+      setTasks(prevTasks => {
+        if (taskData.id) {
+          // Update existing task
+          return prevTasks.map(task => (task.id === savedTask.id ? savedTask : task));
+        } else {
+          // Add new task
+          return [...prevTasks, savedTask];
+        }
+      });
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'An unknown error occurred');
     }
@@ -84,7 +95,9 @@ const TasksPage = () => {
         method: 'POST',
       });
       if (!res.ok) throw new Error(`Failed to complete task: ${res.statusText}`);
-      fetchTasksAndCategories();
+      
+      // Optimistically update UI
+      setTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'An unknown error occurred');
     }
@@ -97,7 +110,9 @@ const TasksPage = () => {
         method: 'DELETE',
       });
       if (!res.ok) throw new Error(`Failed to delete task: ${res.statusText}`);
-      fetchTasksAndCategories();
+      
+      // Optimistically update UI
+      setTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'An unknown error occurred');
     }
@@ -109,7 +124,11 @@ const TasksPage = () => {
         method: 'POST',
       });
       if (!res.ok) throw new Error(`Failed to start timer: ${res.statusText}`);
-      fetchTasksAndCategories();
+      const updatedTask: Task = await res.json();
+
+      setTasks(prevTasks =>
+        prevTasks.map(task => (task.id === taskId ? { ...task, isRunning: true, startTime: updatedTask.startTime } : task))
+      );
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'An unknown error occurred');
     }
@@ -121,7 +140,13 @@ const TasksPage = () => {
         method: 'POST',
       });
       if (!res.ok) throw new Error(`Failed to stop timer: ${res.statusText}`);
-      fetchTasksAndCategories();
+      const updatedTask: Task = await res.json();
+
+      setTasks(prevTasks =>
+        prevTasks.map(task =>
+          task.id === taskId ? { ...task, isRunning: false, elapsedTime: updatedTask.elapsedTime } : task
+        )
+      );
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'An unknown error occurred');
     }
@@ -142,11 +167,11 @@ const TasksPage = () => {
         body: JSON.stringify({ taskIds, categoryId }),
       });
       if (!res.ok) throw new Error(`Failed to reorder tasks: ${res.statusText}`);
-      // Re-fetch to ensure consistency after optimistic update
-      fetchTasksAndCategories();
+      // No need to fetchTasksAndCategories();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'An unknown error occurred');
-      fetchTasksAndCategories(); // Revert on error
+      // Revert on error - re-fetch to ensure consistency
+      fetchTasksAndCategories();
     }
   };
 
@@ -160,7 +185,18 @@ const TasksPage = () => {
         body: JSON.stringify(categoryData),
       });
       if (!res.ok) throw new Error(`Failed to save category: ${res.statusText}`);
-      fetchTasksAndCategories();
+      
+      const savedCategory: Category = await res.json();
+
+      setCategories(prevCategories => {
+        if (categoryData.id) {
+          // Update existing category
+          return prevCategories.map(category => (category.id === savedCategory.id ? savedCategory : category));
+        } else {
+          // Add new category
+          return [...prevCategories, savedCategory];
+        }
+      });
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'An unknown error occurred');
     }
@@ -173,7 +209,15 @@ const TasksPage = () => {
         method: 'DELETE',
       });
       if (!res.ok) throw new Error(`Failed to delete category: ${res.statusText}`);
-      fetchTasksAndCategories();
+      
+      // Update categories state
+      setCategories(prevCategories => prevCategories.filter(cat => cat.id !== categoryId));
+      // Update tasks state: set categoryId to undefined for tasks in this category
+      setTasks(prevTasks =>
+        prevTasks.map(task =>
+          task.categoryId === categoryId ? { ...task, categoryId: undefined } : task
+        )
+      );
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'An unknown error occurred');
     }
