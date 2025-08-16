@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Task } from '@/lib/types';
 import { formatDeadline, formatElapsedTime } from '@/lib/utils';
@@ -92,9 +91,14 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({
       onDragLeave={onDragLeave}
       style={{ opacity: isDragging ? 0.5 : 1, borderColor: isDragging ? 'var(--mantine-color-blue-5)' : undefined }}
     >
-        <Grid align="center">
+        <Grid align="center" gutter="md">
             <Grid.Col span="auto">
-                <Text fw={500} size="lg" truncate>{task.title}</Text>
+                <Stack gap={0}>
+                    <Text fw={500} size="lg" truncate>{task.title}</Text>
+                    {task.description && (
+                        <Text c="dimmed" size="sm" truncate>{task.description}</Text>
+                    )}
+                </Stack>
             </Grid.Col>
             <Grid.Col span="content">
                 <Group gap="md">
@@ -123,26 +127,22 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({
             </Grid.Col>
         </Grid>
 
-        {(task.description || task.deadline) && (
-            <Stack gap="xs" mt="md">
-            {task.description && (
-                <Text c="dimmed" size="sm">{task.description}</Text>
-            )}
-            {task.deadline && (
+        <Group justify="space-between" mt="md" align="center">
+            {task.deadline ? (
                 <Text size="sm" className={deadlineClass}>
-                期限: {deadlineText}
+                    期限: {deadlineText}
                 </Text>
+            ) : (
+                <div /> // Empty div for spacing
             )}
-            </Stack>
-        )}
-
-        <Group justify="flex-end" mt="md">
-            <Button variant="light" color="green" size="xs" onClick={() => onComplete(task.id)}>
-            完了
-            </Button>
-            <Button variant="light" color="red" size="xs" onClick={() => onDelete(task.id)}>
-            削除
-            </Button>
+            <Group gap="xs">
+                <Button variant="light" color="green" size="xs" onClick={() => onComplete(task.id)}>
+                完了
+                </Button>
+                <Button variant="light" color="red" size="xs" onClick={() => onDelete(task.id)}>
+                削除
+                </Button>
+            </Group>
         </Group>
     </Card>
   );
