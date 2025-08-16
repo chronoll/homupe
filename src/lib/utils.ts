@@ -1,4 +1,3 @@
-
 import { Task, Category } from './types';
 
 // --- Validation Functions ---
@@ -60,6 +59,19 @@ export function formatElapsedTime(totalMinutes: number): string {
     return `${h}:${pad(m)}:${pad(s)}`;
   }
   return `${pad(m)}:${pad(s)}`;
+}
+
+/**
+ * Formats work time in minutes to a string (e.g., "01:30").
+ * @param totalMinutes The total work time in minutes.
+ * @returns A formatted time string in HH:MM format.
+ */
+export function formatWorkTime(totalMinutes: number): string {
+  if (totalMinutes < 0) totalMinutes = 0;
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  const pad = (num: number) => num.toString().padStart(2, '0');
+  return `${pad(h)}:${pad(m)}`;
 }
 
 /**

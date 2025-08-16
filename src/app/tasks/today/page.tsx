@@ -8,9 +8,8 @@ import CategoryModal from '@/components/CategoryModal';
 import FloatingCreateButton from '@/components/FloatingCreateButton';
 import { requestNotificationPermission } from '@/lib/notifications';
 import AppHeader from '@/components/AppHeader';
-import { AppShell, Container, Title, Text, Paper, SimpleGrid, Stack, Grid, Group } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
-import { formatElapsedTime } from '@/lib/utils';
+import { AppShell, Container, Title, Text, Paper, Stack, Grid, Group, TextInput } from '@mantine/core';
+import { formatElapsedTime, formatWorkTime } from '@/lib/utils';
 
 const TodayTasksPage = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -20,6 +19,10 @@ const TodayTasksPage = () => {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Partial<Task> | undefined>(undefined);
+
+  const [workTime, setWorkTime] = useState(0); // in minutes
+  const [isEditingWorkTime, setIsEditingWorkTime] = useState(false);
+  const [workTimeInput, setWorkTimeInput] = useState("00:00");
 
   const fetchTasksAndCategories = useCallback(async () => {
     try {
@@ -51,10 +54,53 @@ const TodayTasksPage = () => {
     }
   }, []);
 
+  const fetchWorkTime = useCallback(async () => {
+    try {
+      const res = await fetch('/api/work-time');
+      if (!res.ok) throw new Error('Failed to fetch work time');
+      const data = await res.json();
+      setWorkTime(data.minutes);
+      setWorkTimeInput(formatWorkTime(data.minutes));
+    } catch (e) {
+      console.error("Failed to fetch work time", e);
+      setError(e instanceof Error ? e.message : 'Failed to load work time');
+    }
+  }, []);
+
   useEffect(() => {
     fetchTasksAndCategories();
+    fetchWorkTime();
     requestNotificationPermission();
-  }, [fetchTasksAndCategories]);
+  }, [fetchTasksAndCategories, fetchWorkTime]);
+
+  const handleSaveWorkTime = async () => {
+    const parts = workTimeInput.split(':').map(p => parseInt(p, 10));
+    let minutes = 0;
+    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+      minutes = parts[0] * 60 + parts[1];
+    } else if (parts.length === 1 && !isNaN(parts[0])) {
+      minutes = parts[0];
+    } else {
+        setWorkTimeInput(formatWorkTime(workTime));
+        setIsEditingWorkTime(false);
+        return;
+    }
+    
+    try {
+      await fetch('/api/work-time', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ minutes }),
+      });
+      setWorkTime(minutes);
+      setWorkTimeInput(formatWorkTime(minutes));
+    } catch (e) {
+      console.error("Failed to save work time", e);
+      setError(e instanceof Error ? e.message : 'Failed to save work time');
+    } finally {
+      setIsEditingWorkTime(false);
+    }
+  };
 
   const handleSaveTask = async (taskData: Partial<Task>) => {
     try {
@@ -66,7 +112,7 @@ const TodayTasksPage = () => {
         body: JSON.stringify(taskData),
       });
       if (!res.ok) throw new Error(`Failed to save task: ${res.statusText}`);
-      fetchTasksAndCategories(); // Re-fetch to update the list
+      fetchTasksAndCategories();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'An unknown error occurred');
     }
@@ -153,6 +199,30 @@ const TodayTasksPage = () => {
               <Grid.Col span="content">
                 <Group gap="md">
                     <Stack gap={0} align="end">
+                        <Text size="xs" c="dimmed">作業時間</Text>
+                        {isEditingWorkTime ? (
+                          <TextInput
+                            size="xs"
+                            value={workTimeInput}
+                            onChange={(event) => setWorkTimeInput(event.currentTarget.value)}
+                            onBlur={handleSaveWorkTime}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter') handleSaveWorkTime();
+                              if (event.key === 'Escape') {
+                                setIsEditingWorkTime(false);
+                                setWorkTimeInput(formatWorkTime(workTime));
+                              }
+                            }}
+                            autoFocus
+                            style={{ width: '70px' }}
+                          />
+                        ) : (
+                          <Text size="lg" onClick={() => setIsEditingWorkTime(true)} style={{ cursor: 'pointer' }}>
+                            {formatWorkTime(workTime)}
+                          </Text>
+                        )}
+                    </Stack>
+                    <Stack gap={0} align="end">
                         <Text size="xs" c="dimmed">合計目標</Text>
                         <Text size="lg" c="dimmed">{formatElapsedTime(totalTargetTime)}</Text>
                     </Stack>
@@ -160,7 +230,6 @@ const TodayTasksPage = () => {
                         <Text size="xs" c="dimmed">合計計測</Text>
                         <Text size="lg">{formatElapsedTime(totalElapsedTime)}</Text>
                     </Stack>
-                    {/* Spacer to align with TaskCard's start/stop button */}
                     <div style={{ width: '60px' }} /> 
                 </Group>
               </Grid.Col>
