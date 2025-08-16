@@ -1,6 +1,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createTask, getAllTasks, getTask, updateTask, deleteTask } from '@/lib/repositories/taskRepository';
+import { createTask, getAllTasks, getTask, updateTask, deleteTask, reorderTasks } from '@/lib/repositories/taskRepository';
 import { startTimer, stopTimer } from '@/lib/repositories/timerRepository';
 import { validateTask } from '@/lib/utils';
 
@@ -78,8 +78,17 @@ export async function PUT(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const action = searchParams.get('action');
 
-    if (!id) {
+    if (action === 'reorder') {
+      const body = await request.json();
+      const { taskIds } = body;
+      if (!Array.isArray(taskIds)) {
+        return NextResponse.json({ error: 'taskIds must be an array' }, { status: 400 });
+      }
+      await reorderTasks(taskIds);
+      return new NextResponse(null, { status: 200 });
+    } else if (!id) {
       return NextResponse.json({ error: 'Task ID is required' }, { status: 400 });
     }
 

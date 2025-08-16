@@ -72,3 +72,18 @@ export const getAllTasks = async (): Promise<Task[]> => {
 
   return tasks.filter(task => task !== null) as Task[];
 };
+
+export const reorderTasks = async (taskIds: string[]): Promise<void> => {
+  const client = getClient();
+  const pipeline = client.pipeline();
+
+  for (let i = 0; i < taskIds.length; i++) {
+    const taskId = taskIds[i];
+    const task = await getTask(taskId);
+    if (task) {
+      const updatedTask = { ...task, order: i };
+      setJson(`${TASK_KEY_PREFIX}${taskId}`, updatedTask, pipeline);
+    }
+  }
+  await pipeline.exec();
+};
