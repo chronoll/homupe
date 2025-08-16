@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Category } from '@/lib/types';
 import { validateCategory } from '@/lib/utils';
@@ -30,7 +29,7 @@ const colors = [
   '#6B7280', // Gray
 ];
 
-const CategoryModal: React.FC<CategoryModalProps> = ({
+const CategoryModal: React.FC<CategoryModalProps> = React.memo(({
   isOpen,
   onClose,
   onSave,
@@ -141,6 +140,8 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
       </div>
     </div>
   );
-};
+});
 
-export default CategoryModal;
+CategoryModal.displayName = 'CategoryModal';
+
+export default React.memo(CategoryModal);

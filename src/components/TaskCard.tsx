@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Task } from '@/lib/types';
 import { formatDeadline } from '@/lib/utils';
@@ -17,7 +16,7 @@ interface TaskCardProps {
   isDragging?: boolean;
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({
+const TaskCard: React.FC<TaskCardProps> = React.memo(({
   task,
   onComplete,
   onDelete,
@@ -70,6 +69,8 @@ const TaskCard: React.FC<TaskCardProps> = ({
       </div>
     </div>
   );
-};
+});
 
-export default TaskCard;
+TaskCard.displayName = 'TaskCard';
+
+export default React.memo(TaskCard);

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Task, Category } from '@/lib/types';
 import TaskCard from './TaskCard';
@@ -14,7 +13,7 @@ interface CategorySectionProps {
   onReorderTasks: (taskIds: string[], categoryId?: string) => void; // New prop for reordering
 }
 
-const CategorySection: React.FC<CategorySectionProps> = ({
+const CategorySection: React.FC<CategorySectionProps> = React.memo(({
   category,
   tasks,
   onCompleteTask,
@@ -30,7 +29,36 @@ const CategorySection: React.FC<CategorySectionProps> = ({
   useEffect(() => {
     setLocalTasks(tasks);
   }, [tasks]);
+
   const categoryName = category ? category.name : '未分類';
+
+  const handleDragStart = (id: string) => {
+    setDraggingId(id);
+  };
+
+  const handleDragEnter = (id: string) => {
+    if (id === draggingId) return;
+
+    const newTasks = [...localTasks];
+    const draggingIndex = newTasks.findIndex((task) => task.id === draggingId);
+    const targetIndex = newTasks.findIndex((task) => task.id === id);
+
+    if (draggingIndex !== -1 && targetIndex !== -1) {
+      const [removed] = newTasks.splice(draggingIndex, 1);
+      newTasks.splice(targetIndex, 0, removed);
+      setLocalTasks(newTasks);
+    }
+  };
+
+  const handleDragLeave = () => {
+    // Optional: Add visual feedback for drag leave if needed
+  };
+
+  const handleDrop = () => {
+    if (draggingId === null) return;
+    onReorderTasks(localTasks.map((task) => task.id), category?.id);
+    setDraggingId(null);
+  };
 
   return (
     <div className="bg-gray-100 rounded-lg p-4 mb-6">
@@ -70,34 +98,8 @@ const CategorySection: React.FC<CategorySectionProps> = ({
       )}
     </div>
   );
+});
 
-  function handleDragStart(id: string) {
-    setDraggingId(id);
-  }
+CategorySection.displayName = 'CategorySection';
 
-  function handleDragEnter(id: string) {
-    if (id === draggingId) return;
-
-    const newTasks = [...localTasks];
-    const draggingIndex = newTasks.findIndex((task) => task.id === draggingId);
-    const targetIndex = newTasks.findIndex((task) => task.id === id);
-
-    if (draggingIndex !== -1 && targetIndex !== -1) {
-      const [removed] = newTasks.splice(draggingIndex, 1);
-      newTasks.splice(targetIndex, 0, removed);
-      setLocalTasks(newTasks);
-    }
-  }
-
-  function handleDragLeave() {
-    // Optional: Add visual feedback for drag leave if needed
-  }
-
-  function handleDrop() {
-    if (draggingId === null) return;
-    onReorderTasks(localTasks.map((task) => task.id), category?.id);
-    setDraggingId(null);
-  }
-};
-
-export default CategorySection;
+export default React.memo(CategorySection);

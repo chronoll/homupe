@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Task, Category } from '@/lib/types';
 import { validateTask } from '@/lib/utils';
@@ -15,7 +14,7 @@ const targetTimeOptions = [
   5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 60, 75, 90, 105, 120,
 ];
 
-const TaskModal: React.FC<TaskModalProps> = ({
+const TaskModal: React.FC<TaskModalProps> = React.memo(({
   isOpen,
   onClose,
   onSave,
@@ -183,6 +182,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
       </div>
     </div>
   );
-};
+});
 
-export default TaskModal;
+TaskModal.displayName = 'TaskModal';
+
+export default React.memo(TaskModal);

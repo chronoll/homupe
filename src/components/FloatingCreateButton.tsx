@@ -1,11 +1,12 @@
-
 import React from 'react';
 
 interface FloatingCreateButtonProps {
   onClick: () => void;
 }
 
-const FloatingCreateButton: React.FC<FloatingCreateButtonProps> = ({ onClick }) => {
+const FloatingCreateButton: React.FC<FloatingCreateButtonProps> = React.memo(({
+  onClick,
+}) => {
   return (
     <button
       onClick={onClick}
@@ -15,6 +16,8 @@ const FloatingCreateButton: React.FC<FloatingCreateButtonProps> = ({ onClick }) 
       +
     </button>
   );
-};
+});
 
-export default FloatingCreateButton;
+FloatingCreateButton.displayName = 'FloatingCreateButton';
+
+export default React.memo(FloatingCreateButton);

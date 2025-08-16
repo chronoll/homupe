@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Task } from '@/lib/types';
 import { formatElapsedTime } from '@/lib/utils';
@@ -10,7 +9,11 @@ interface TimerProps {
   onStop: (taskId: string) => void;
 }
 
-const Timer: React.FC<TimerProps> = ({ task, onStart, onStop }) => {
+const Timer: React.FC<TimerProps> = React.memo(({
+  task,
+  onStart,
+  onStop,
+}) => {
   const [displayTime, setDisplayTime] = useState(task.elapsedTime);
   const [isOverTarget, setIsOverTarget] = useState(false);
   const notificationSentRef = useRef(false);
@@ -78,6 +81,8 @@ const Timer: React.FC<TimerProps> = ({ task, onStart, onStop }) => {
       )}
     </div>
   );
-};
+});
 
-export default Timer;
+Timer.displayName = 'Timer';
+
+export default React.memo(Timer);
