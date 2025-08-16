@@ -40,19 +40,28 @@ export function validateCategory(category: Partial<Category>): { isValid: boolea
 // --- Time Formatting Functions ---
 
 /**
- * Formats elapsed time in minutes to a string like "1h 25m".
- * @param minutes The total elapsed time in minutes.
+ * Formats elapsed time in minutes (float) to a string like "1h 25m 30s".
+ * @param totalMinutes The total elapsed time in minutes (can be float).
  * @returns A formatted string.
  */
-export function formatElapsedTime(minutes: number): string {
-  if (minutes < 0) return '0m';
-  const h = Math.floor(minutes / 60);
-  const m = Math.floor(minutes % 60);
+export function formatElapsedTime(totalMinutes: number): string {
+  if (totalMinutes < 0) return '0s';
+
+  const totalSeconds = Math.floor(totalMinutes * 60);
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+
+  const parts: string[] = [];
   if (h > 0) {
-    return `${h}h ${m}m`;
-  } else {
-    return `${m}m`;
+    parts.push(`${h}h`);
   }
+  if (m > 0 || h > 0) { // Show minutes if there are hours, or if it's the largest unit
+    parts.push(`${m}m`);
+  }
+  parts.push(`${s}s`);
+
+  return parts.join(' ');
 }
 
 /**
