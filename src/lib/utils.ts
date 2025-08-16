@@ -56,15 +56,36 @@ export function formatElapsedTime(minutes: number): string {
 }
 
 /**
- * Formats a deadline object into a readable string.
+ * Formats a deadline object into a readable string and determines its status.
  * @param deadline The deadline object.
- * @returns A formatted date/time string.
+ * @returns An object containing the formatted string and a status class.
  */
-export function formatDeadline(deadline?: Task['deadline']): string {
-  if (!deadline?.date) return 'No deadline';
-  let dateStr = new Date(deadline.date).toLocaleDateString('en-CA'); // YYYY-MM-DD
-  if (deadline.time) {
-    dateStr += ` ${deadline.time}`;
+export function formatDeadline(deadline?: Task['deadline']): { text: string; className: string } {
+  if (!deadline?.date) return { text: 'No deadline', className: '' };
+
+  const deadlineDateTime = new Date(deadline.date + (deadline.time ? `T${deadline.time}` : ''));
+  const now = new Date();
+  const diff = deadlineDateTime.getTime() - now.getTime(); // milliseconds
+  const oneDay = 1000 * 60 * 60 * 24;
+
+  let text = '';
+  let className = '';
+
+  if (diff < 0) {
+    text = '期限切れ';
+    className = 'text-red-600 font-medium';
+  } else if (diff < oneDay) {
+    text = '今日まで';
+    className = 'text-orange-600 font-medium';
+  } else if (diff < oneDay * 2) {
+    text = '明日まで';
+    className = 'text-yellow-600 font-medium';
+  } else {
+    text = deadlineDateTime.toLocaleDateString('ja-JP', { year: 'numeric', month: 'numeric', day: 'numeric' });
+    if (deadline.time) {
+      text += ` ${deadline.time}`;
+    }
   }
-  return dateStr;
+
+  return { text, className };
 }

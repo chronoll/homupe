@@ -29,7 +29,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
   onDragLeave,
   isDragging = false,
 }) => {
-  const isOverdue = task.deadline && new Date(task.deadline.date).getTime() < Date.now();
+  const { text: deadlineText, className: deadlineClass } = formatDeadline(task.deadline);
 
   return (
     <div
@@ -62,9 +62,8 @@ const TaskCard: React.FC<TaskCardProps> = ({
       )}
       <div className="text-sm text-gray-500">
         {task.deadline && (
-          <p className={isOverdue ? 'text-red-600 font-medium' : ''}>
-            期限: {formatDeadline(task.deadline)}
-            {isOverdue && <span className="ml-1">(期限切れ)</span>}
+          <p className={deadlineClass}>
+            期限: {deadlineText}
           </p>
         )}
         <Timer task={task} onStart={onStart} onStop={onStop} />
