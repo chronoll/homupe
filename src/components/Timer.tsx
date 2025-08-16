@@ -1,7 +1,8 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Task } from '@/lib/types';
 import { formatElapsedTime } from '@/lib/utils';
+import { showNotification } from '@/lib/notifications';
 
 interface TimerProps {
   task: Task;
@@ -12,6 +13,7 @@ interface TimerProps {
 const Timer: React.FC<TimerProps> = ({ task, onStart, onStop }) => {
   const [displayTime, setDisplayTime] = useState(task.elapsedTime);
   const [isOverTarget, setIsOverTarget] = useState(false);
+  const notificationSentRef = useRef(false);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -24,8 +26,19 @@ const Timer: React.FC<TimerProps> = ({ task, onStart, onStop }) => {
 
         if (task.targetTime && currentTotalElapsed > task.targetTime) {
           setIsOverTarget(true);
+          if (!notificationSentRef.current) {
+            showNotification(
+              `時間超過: ${task.title}`,
+              {
+                body: `目標時間を${formatElapsedTime(currentTotalElapsed - task.targetTime)}超過しました！`,
+                icon: '/retro-heart.svg',
+              }
+            );
+            notificationSentRef.current = true;
+          }
         } else {
           setIsOverTarget(false);
+          notificationSentRef.current = false; // Reset when no longer over target
         }
       }, 1000);
     } else {
@@ -35,10 +48,11 @@ const Timer: React.FC<TimerProps> = ({ task, onStart, onStop }) => {
       } else {
         setIsOverTarget(false);
       }
+      notificationSentRef.current = false; // Reset when timer stops
     }
 
     return () => clearInterval(interval);
-  }, [task.isRunning, task.elapsedTime, task.startTime, task.targetTime]);
+  }, [task.isRunning, task.elapsedTime, task.startTime, task.targetTime, task.title]);
 
   const timeColorClass = isOverTarget ? 'text-red-600 font-bold' : 'text-gray-800';
 
