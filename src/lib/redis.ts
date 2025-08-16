@@ -1,5 +1,5 @@
 
-import Redis from 'ioredis';
+import Redis, { ChainableCommander } from 'ioredis';
 
 let redis: Redis;
 
@@ -35,7 +35,7 @@ export const getClient = (): Redis => {
 
 // --- Basic CRUD Helpers ---
 
-export const setJson = async (key: string, value: object, pipeline?: Redis): Promise<void> => {
+export const setJson = async (key: string, value: object, pipeline?: ChainableCommander): Promise<void> => {
   const client = pipeline || getClient();
   await client.set(key, JSON.stringify(value));
 };
@@ -49,7 +49,7 @@ export const getJson = async <T>(key: string): Promise<T | null> => {
   return null;
 };
 
-export const del = async (key: string, pipeline?: Redis): Promise<void> => {
+export const del = async (key: string, pipeline?: ChainableCommander): Promise<void> => {
   const client = pipeline || getClient();
   await client.del(key);
 };
