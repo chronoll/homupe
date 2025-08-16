@@ -1,6 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { Task, Category } from '@/lib/types';
 import { validateTask } from '@/lib/utils';
+import { Modal, TextInput, Textarea, Select, Button, Group } from '@mantine/core';
 
 interface TaskModalProps {
   isOpen: boolean;
@@ -11,7 +13,21 @@ interface TaskModalProps {
 }
 
 const targetTimeOptions = [
-  5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 60, 75, 90, 105, 120,
+  { value: '5', label: '5分' },
+  { value: '10', label: '10分' },
+  { value: '15', label: '15分' },
+  { value: '20', label: '20分' },
+  { value: '25', label: '25分' },
+  { value: '30', label: '30分' },
+  { value: '35', label: '35分' },
+  { value: '40', label: '40分' },
+  { value: '45', label: '45分' },
+  { value: '50', label: '50分' },
+  { value: '60', label: '1時間' },
+  { value: '75', label: '1時間15分' },
+  { value: '90', label: '1時間30分' },
+  { value: '105', label: '1時間45分' },
+  { value: '120', label: '2時間' },
 ];
 
 const TaskModal: React.FC<TaskModalProps> = React.memo(({
@@ -23,20 +39,20 @@ const TaskModal: React.FC<TaskModalProps> = React.memo(({
 }) => {
   const [title, setTitle] = useState(initialTask?.title || '');
   const [description, setDescription] = useState(initialTask?.description || '');
-  const [targetTime, setTargetTime] = useState<number | undefined>(initialTask?.targetTime);
+  const [targetTime, setTargetTime] = useState<string | null>(initialTask?.targetTime?.toString() || null);
   const [deadlineDate, setDeadlineDate] = useState(initialTask?.deadline?.date || '');
   const [deadlineTime, setDeadlineTime] = useState(initialTask?.deadline?.time || '');
-  const [categoryId, setCategoryId] = useState<string | undefined>(initialTask?.categoryId);
+  const [categoryId, setCategoryId] = useState<string | null>(initialTask?.categoryId || null);
   const [errors, setErrors] = useState<Partial<Record<keyof Task, string>>>({});
 
   useEffect(() => {
     if (isOpen) {
       setTitle(initialTask?.title || '');
       setDescription(initialTask?.description || '');
-      setTargetTime(initialTask?.targetTime);
+      setTargetTime(initialTask?.targetTime?.toString() || null);
       setDeadlineDate(initialTask?.deadline?.date || '');
       setDeadlineTime(initialTask?.deadline?.time || '');
-      setCategoryId(initialTask?.categoryId);
+      setCategoryId(initialTask?.categoryId || null);
       setErrors({});
     }
   }, [isOpen, initialTask]);
@@ -46,7 +62,7 @@ const TaskModal: React.FC<TaskModalProps> = React.memo(({
     const taskToSave: Partial<Task> = {
       title,
       description: description || undefined,
-      targetTime,
+      targetTime: targetTime ? parseInt(targetTime) : undefined,
       deadline: deadlineDate
         ? { date: deadlineDate, time: deadlineTime || undefined }
         : undefined,
@@ -63,124 +79,77 @@ const TaskModal: React.FC<TaskModalProps> = React.memo(({
     onClose();
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex justify-center items-center z-50">
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-4 text-gray-800">
-          {initialTask ? 'タスクを編集' : '新しいタスクを作成'}
-        </h2>
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label htmlFor="title" className="block text-gray-700 text-sm font-bold mb-2">
-              タイトル <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              id="title"
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-            />
-            {errors.title && <p className="text-red-500 text-xs italic">{errors.title}</p>}
-          </div>
+    <Modal opened={isOpen} onClose={onClose} title={initialTask ? 'タスクを編集' : '新しいタスクを作成'} centered>
+      <form onSubmit={handleSubmit}>
+        <TextInput
+          label="タイトル"
+          placeholder="タスクのタイトル"
+          value={title}
+          onChange={(event) => setTitle(event.currentTarget.value)}
+          required
+          error={errors.title}
+          mb="md"
+        />
 
-          <div className="mb-4">
-            <label htmlFor="description" className="block text-gray-700 text-sm font-bold mb-2">
-              説明
-            </label>
-            <textarea
-              id="description"
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline h-24 resize-none"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            ></textarea>
-          </div>
+        <Textarea
+          label="説明"
+          placeholder="タスクの説明"
+          value={description}
+          onChange={(event) => setDescription(event.currentTarget.value)}
+          autosize
+          minRows={2}
+          mb="md"
+        />
 
-          <div className="mb-4">
-            <label htmlFor="targetTime" className="block text-gray-700 text-sm font-bold mb-2">
-              目標時間 (分)
-            </label>
-            <select
-              id="targetTime"
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              value={targetTime || ''}
-              onChange={(e) => setTargetTime(e.target.value ? parseInt(e.target.value) : undefined)}
-            >
-              <option value="">なし</option>
-              {targetTimeOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}分
-                </option>
-              ))}
-            </select>
-          </div>
+        <Select
+          label="目標時間 (分)"
+          placeholder="目標時間を選択"
+          data={targetTimeOptions}
+          value={targetTime}
+          onChange={setTargetTime}
+          clearable
+          mb="md"
+        />
 
-          <div className="mb-4">
-            <label htmlFor="deadlineDate" className="block text-gray-700 text-sm font-bold mb-2">
-              期限日
-            </label>
-            <input
-              type="date"
-              id="deadlineDate"
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              value={deadlineDate}
-              onChange={(e) => setDeadlineDate(e.target.value)}
-            />
-          </div>
+        <TextInput
+          label="期限日"
+          type="date"
+          placeholder="期限日を選択"
+          value={deadlineDate}
+          onChange={(event) => setDeadlineDate(event.currentTarget.value)}
+          mb="md"
+        />
 
-          <div className="mb-4">
-            <label htmlFor="deadlineTime" className="block text-gray-700 text-sm font-bold mb-2">
-              期限時刻
-            </label>
-            <input
-              type="time"
-              id="deadlineTime"
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              value={deadlineTime}
-              onChange={(e) => setDeadlineTime(e.target.value)}
-            />
-          </div>
+        <TextInput
+          label="期限時刻"
+          type="time"
+          placeholder="HH:MM"
+          value={deadlineTime}
+          onChange={(event) => setDeadlineTime(event.currentTarget.value)}
+          mb="md"
+        />
 
-          <div className="mb-4">
-            <label htmlFor="categoryId" className="block text-gray-700 text-sm font-bold mb-2">
-              カテゴリ
-            </label>
-            <select
-              id="categoryId"
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              value={categoryId || ''}
-              onChange={(e) => setCategoryId(e.target.value || undefined)}
-            >
-              <option value="">なし</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
-          </div>
+        <Select
+          label="カテゴリ"
+          placeholder="カテゴリを選択"
+          data={categories.map(cat => ({ value: cat.id, label: cat.name }))}
+          value={categoryId}
+          onChange={setCategoryId}
+          clearable
+          mb="xl"
+        />
 
-          <div className="flex items-center justify-between">
-            <button
-              type="submit"
-              className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-            >
-              保存
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-            >
-              キャンセル
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <Group justify="flex-end">
+          <Button variant="default" onClick={onClose}>
+            キャンセル
+          </Button>
+          <Button type="submit">
+            保存
+          </Button>
+        </Group>
+      </form>
+    </Modal>
   );
 });
 

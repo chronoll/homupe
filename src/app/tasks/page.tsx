@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -8,6 +9,9 @@ import CategoryModal from '@/components/CategoryModal';
 import FloatingCreateButton from '@/components/FloatingCreateButton';
 import { requestNotificationPermission } from '@/lib/notifications';
 
+import { AppShell, Burger, Group, Title, Button, Container, Text, rem } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
+
 const TasksPage = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -17,6 +21,7 @@ const TasksPage = () => {
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Partial<Task> | undefined>(undefined);
   const [selectedCategoryIdForNewTask, setSelectedCategoryIdForNewTask] = useState<string | undefined>(undefined);
+  const [opened, { toggle }] = useDisclosure();
 
   const fetchTasksAndCategories = useCallback(async () => {
     try {
@@ -204,48 +209,65 @@ const TasksPage = () => {
   }));
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-900">タスク管理</h1>
-          <button
-            onClick={openCreateCategoryModal}
-            className="bg-purple-500 hover:bg-purple-600 text-white text-sm px-4 py-2 rounded-full transition-colors duration-200"
-          >
-            + カテゴリ作成
-          </button>
-        </div>
-      </header>
+    <AppShell
+      header={{ height: rem(60) }}
+      navbar={{ width: 300, breakpoint: 'sm', collapsed: { mobile: !opened } }}
+      padding="md"
+    >
+      <AppShell.Header>
+        <Group h="100%" px="md">
+          <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
+          <Title order={1} size="h3">タスク管理</Title>
+          <Button onClick={openCreateCategoryModal} ml="auto">+ カテゴリ作成</Button>
+        </Group>
+      </AppShell.Header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Uncategorized Tasks */}
-        {uncategorizedTasks.length > 0 && (
-          <CategorySection
-            tasks={uncategorizedTasks}
-            onCompleteTask={handleCompleteTask}
-            onDeleteTask={handleDeleteTask}
-            onStartTimer={handleStartTimer}
-            onStopTimer={handleStopTimer}
-            onCreateTask={openCreateTaskModal}
-            onReorderTasks={handleReorderTasks}
-          />
-        )}
-
-        {/* Categorized Tasks */}
-        {categorizedTasks.map(({ category, tasks: catTasks }) => (
-          <CategorySection
-            key={category.id}
-            category={category}
-            tasks={catTasks}
-            onCompleteTask={handleCompleteTask}
-            onDeleteTask={handleDeleteTask}
-            onStartTimer={handleStartTimer}
-            onStopTimer={handleStopTimer}
-            onCreateTask={openCreateTaskModal}
-            onReorderTasks={handleReorderTasks}
-          />
+      <AppShell.Navbar p="md">
+        <Title order={2} size="h4" mb="md">カテゴリ</Title>
+        {categories.map(cat => (
+          <Group key={cat.id} justify="space-between" mb="xs">
+            <Text>{cat.name}</Text>
+            <Button size="xs" variant="light" onClick={() => handleDeleteCategory(cat.id)}>削除</Button>
+          </Group>
         ))}
-      </main>
+      </AppShell.Navbar>
+
+      <AppShell.Main>
+        <Container size="lg">
+          {loading && <Text>読み込み中...</Text>}
+          {error && <Text color="red">エラー: {error}</Text>}
+
+          {!loading && !error && (
+            <>
+              {uncategorizedTasks.length > 0 && (
+                <CategorySection
+                  tasks={uncategorizedTasks}
+                  onCompleteTask={handleCompleteTask}
+                  onDeleteTask={handleDeleteTask}
+                  onStartTimer={handleStartTimer}
+                  onStopTimer={handleStopTimer}
+                  onCreateTask={openCreateTaskModal}
+                  onReorderTasks={handleReorderTasks}
+                />
+              )}
+
+              {categorizedTasks.map(({ category, tasks: catTasks }) => (
+                <CategorySection
+                  key={category.id}
+                  category={category}
+                  tasks={catTasks}
+                  onCompleteTask={handleCompleteTask}
+                  onDeleteTask={handleDeleteTask}
+                  onStartTimer={handleStartTimer}
+                  onStopTimer={handleStopTimer}
+                  onCreateTask={openCreateTaskModal}
+                  onReorderTasks={handleReorderTasks}
+                />
+              ))}
+            </>
+          )}
+        </Container>
+      </AppShell.Main>
 
       <FloatingCreateButton onClick={() => openCreateTaskModal()} />
 
@@ -262,7 +284,7 @@ const TasksPage = () => {
         onClose={() => setIsCategoryModalOpen(false)}
         onSave={handleSaveCategory}
       />
-    </div>
+    </AppShell>
   );
 };
 

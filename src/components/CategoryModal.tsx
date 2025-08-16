@@ -1,6 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { Category } from '@/lib/types';
 import { validateCategory } from '@/lib/utils';
+import { Modal, TextInput, Button, Group, Text, ColorPicker, rem } from '@mantine/core';
 
 interface CategoryModalProps {
   isOpen: boolean;
@@ -64,81 +66,49 @@ const CategoryModal: React.FC<CategoryModalProps> = React.memo(({
     onClose();
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex justify-center items-center z-50">
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-4 text-gray-800">
-          {initialCategory ? 'カテゴリを編集' : '新しいカテゴリを作成'}
-        </h2>
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label htmlFor="name" className="block text-gray-700 text-sm font-bold mb-2">
-              カテゴリ名 <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              id="name"
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
+    <Modal opened={isOpen} onClose={onClose} title={initialCategory ? 'カテゴリを編集' : '新しいカテゴリを作成'} centered>
+      <form onSubmit={handleSubmit}>
+        <TextInput
+          label="カテゴリ名"
+          placeholder="カテゴリ名を入力"
+          value={name}
+          onChange={(event) => setName(event.currentTarget.value)}
+          required
+          error={errors.name}
+          mb="md"
+        />
+
+        <Text size="sm" fw={500} mb={rem(4)}>
+          色
+        </Text>
+        <Group gap="xs" mb="xl">
+          {colors.map((c) => (
+            <div
+              key={c}
+              style={{
+                backgroundColor: c,
+                width: rem(30),
+                height: rem(30),
+                borderRadius: rem(30),
+                cursor: 'pointer',
+                border: `${rem(2)} solid ${color === c ? 'var(--mantine-color-blue-5)' : 'transparent'}`,
+              }}
+              onClick={() => setColor(c)}
             />
-            {errors.name && <p className="text-red-500 text-xs italic">{errors.name}</p>}
-          </div>
+          ))}
+        </Group>
 
-          <div className="mb-4">
-            <label htmlFor="color" className="block text-gray-700 text-sm font-bold mb-2">
-              色
-            </label>
-            <div className="grid grid-cols-6 gap-2">
-              {colors.map((c) => (
-                <div
-                  key={c}
-                  className={`w-10 h-10 rounded-full cursor-pointer flex items-center justify-center border-2 ${color === c ? 'border-blue-500' : 'border-transparent'}`}
-                  style={{ backgroundColor: c }}
-                  onClick={() => setColor(c)}
-                >
-                  {color === c && (
-                    <svg
-                      className="w-6 h-6 text-white"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M5 13l4 4L19 7"
-                      ></path>
-                    </svg>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <button
-              type="submit"
-              className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-            >
-              保存
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-            >
-              キャンセル
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <Group justify="flex-end">
+          <Button variant="default" onClick={onClose}>
+            キャンセル
+          </Button>
+          <Button type="submit">
+            保存
+          </Button>
+        </Group>
+      </form>
+    </Modal>
   );
 });
 

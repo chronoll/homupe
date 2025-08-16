@@ -1,7 +1,9 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Task } from '@/lib/types';
 import { formatElapsedTime } from '@/lib/utils';
 import { showNotification } from '@/lib/notifications';
+import { Group, Text, Button } from '@mantine/core';
 
 interface TimerProps {
   task: Task;
@@ -57,29 +59,23 @@ const Timer: React.FC<TimerProps> = React.memo(({
     return () => clearInterval(interval);
   }, [task.isRunning, task.elapsedTime, task.startTime, task.targetTime, task.title]);
 
-  const timeColorClass = isOverTarget ? 'text-red-600 font-bold' : 'text-gray-800';
+  const timeColor = isOverTarget ? 'red' : 'gray';
 
   return (
-    <div className="flex items-center space-x-2">
-      <span className={`text-lg ${timeColorClass}`}>
+    <Group gap="xs">
+      <Text size="lg" c={timeColor} fw={isOverTarget ? 700 : 400}>
         {formatElapsedTime(displayTime)}
-      </span>
+      </Text>
       {!task.isRunning ? (
-        <button
-          onClick={() => onStart(task.id)}
-          className="bg-blue-500 hover:bg-blue-600 text-white text-sm px-3 py-1 rounded-full transition-colors duration-200"
-        >
+        <Button size="xs" variant="light" color="blue" onClick={() => onStart(task.id)}>
           開始
-        </button>
+        </Button>
       ) : (
-        <button
-          onClick={() => onStop(task.id)}
-          className="bg-yellow-500 hover:bg-yellow-600 text-white text-sm px-3 py-1 rounded-full transition-colors duration-200"
-        >
+        <Button size="xs" variant="light" color="yellow" onClick={() => onStop(task.id)}>
           停止
-        </button>
+        </Button>
       )}
-    </div>
+    </Group>
   );
 });
 

@@ -1,6 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { Task, Category } from '@/lib/types';
 import TaskCard from './TaskCard';
+import { Title, Button, Paper, Text, Group } from '@mantine/core';
 
 interface CategorySectionProps {
   category?: Category; // Undefined for uncategorized tasks
@@ -61,23 +63,20 @@ const CategorySection: React.FC<CategorySectionProps> = React.memo(({
   };
 
   return (
-    <div className="bg-gray-100 rounded-lg p-4 mb-6">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold text-gray-800">{categoryName}</h2>
-        <button
-          onClick={() => onCreateTask(category?.id)}
-          className="bg-blue-500 hover:bg-blue-600 text-white text-sm px-4 py-2 rounded-full transition-colors duration-200"
-        >
+    <Paper shadow="xs" p="md" withBorder mb="lg">
+      <Group justify="space-between" mb="md">
+        <Title order={3}>{categoryName}</Title>
+        <Button onClick={() => onCreateTask(category?.id)} variant="light">
           + タスク追加
-        </button>
-      </div>
+        </Button>
+      </Group>
       {tasks.length === 0 ? (
-        <p className="text-gray-600">このカテゴリにはタスクがありません。</p>
+        <Text c="dimmed">このカテゴリにはタスクがありません。</Text>
       ) : (
         <div
           onDragOver={(e) => e.preventDefault()}
           onDrop={handleDrop}
-          className="min-h-[50px]"
+          style={{ minHeight: '50px' }}
         >
           {localTasks.map((task) => (
             <TaskCard
@@ -96,7 +95,7 @@ const CategorySection: React.FC<CategorySectionProps> = React.memo(({
           ))}
         </div>
       )}
-    </div>
+    </Paper>
   );
 });
 

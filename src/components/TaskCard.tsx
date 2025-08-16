@@ -1,7 +1,9 @@
+
 import React from 'react';
 import { Task } from '@/lib/types';
 import { formatDeadline } from '@/lib/utils';
 import Timer from './Timer';
+import { Card, Group, Text, Button, Stack } from '@mantine/core';
 
 interface TaskCardProps {
   task: Task;
@@ -31,43 +33,44 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({
   const { text: deadlineText, className: deadlineClass } = formatDeadline(task.deadline);
 
   return (
-    <div
-      className={`bg-white rounded-lg shadow-md p-4 mb-4 border border-gray-200 ${isDragging ? 'opacity-50 border-blue-500' : ''}`}
+    <Card
+      shadow="sm"
+      padding="lg"
+      radius="md"
+      withBorder
+      mb="md"
       draggable={draggable}
       onDragStart={onDragStart}
       onDragOver={(e) => e.preventDefault()}
       onDragEnter={onDragEnter}
       onDragLeave={onDragLeave}
+      style={{ opacity: isDragging ? 0.5 : 1, borderColor: isDragging ? 'var(--mantine-color-blue-5)' : undefined }}
     >
-      <div className="flex justify-between items-start mb-2">
-        <h3 className="text-lg font-semibold text-gray-800">{task.title}</h3>
-        <div className="flex space-x-2">
-          <button
-            onClick={() => onComplete(task.id)}
-            className="bg-green-500 hover:bg-green-600 text-white text-sm px-3 py-1 rounded-full transition-colors duration-200"
-          >
+      <Group justify="space-between" mb="xs" align="flex-start">
+        <Text fw={500} size="lg">{task.title}</Text>
+        <Group gap="xs">
+          <Button variant="light" color="green" size="xs" onClick={() => onComplete(task.id)}>
             完了
-          </button>
-          <button
-            onClick={() => onDelete(task.id)}
-            className="bg-red-500 hover:bg-red-600 text-white text-sm px-3 py-1 rounded-full transition-colors duration-200"
-          >
+          </Button>
+          <Button variant="light" color="red" size="xs" onClick={() => onDelete(task.id)}>
             削除
-          </button>
-        </div>
-      </div>
+          </Button>
+        </Group>
+      </Group>
+
       {task.description && (
-        <p className="text-gray-600 text-sm mb-2">{task.description}</p>
+        <Text c="dimmed" size="sm" mb="xs">{task.description}</Text>
       )}
-      <div className="text-sm text-gray-500">
+
+      <Stack gap={4} mt="sm">
         {task.deadline && (
-          <p className={deadlineClass}>
+          <Text size="sm" className={deadlineClass}>
             期限: {deadlineText}
-          </p>
+          </Text>
         )}
         <Timer task={task} onStart={onStart} onStop={onStop} />
-      </div>
-    </div>
+      </Stack>
+    </Card>
   );
 });
 
