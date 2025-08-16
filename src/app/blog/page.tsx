@@ -1,4 +1,5 @@
 import BlogList from '@/components/BlogList';
+import Link from 'next/link';
 
 export default function BlogPage() {
   return (
@@ -7,9 +8,9 @@ export default function BlogPage() {
       <header className="bg-white shadow-sm border-b border-slate-200">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <nav className="flex items-center justify-between">
-            <a href="/" className="text-slate-600 hover:text-slate-900 transition-colors">
+            <Link href="/" className="text-slate-600 hover:text-slate-900 transition-colors">
               ← ホームへ戻る
-            </a>
+            </Link>
             <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
               Blog
             </h1>
