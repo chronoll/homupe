@@ -121,14 +121,18 @@ const TaskModal: React.FC<TaskModalProps> = React.memo(({
           mb="md"
         />
 
-        <TextInput
-          label="期限時刻"
-          type="time"
-          placeholder="HH:MM"
-          value={deadlineTime}
-          onChange={(event) => setDeadlineTime(event.currentTarget.value)}
-          mb="md"
-        />
+        <Group grow mb="md">
+          <TextInput
+            label="期限時刻"
+            type="time"
+            placeholder="HH:MM"
+            value={deadlineTime}
+            onChange={(event) => setDeadlineTime(event.currentTarget.value)}
+          />
+          <Button variant="default" onClick={() => setDeadlineTime('')} disabled={!deadlineTime}>
+            クリア
+          </Button>
+        </Group>
 
         <Select
           label="カテゴリ"

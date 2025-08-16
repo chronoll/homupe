@@ -87,24 +87,40 @@ export function formatDeadline(deadline?: Task['deadline']): { text: string; cla
   const diff = deadlineDateTime.getTime() - now.getTime(); // milliseconds
   const oneDay = 1000 * 60 * 60 * 24;
 
-  let text = '';
+  let statusText = '';
   let className = '';
 
-  if (diff < 0) {
-    text = '期限切れ';
-    className = 'text-red-600 font-medium';
-  } else if (diff < oneDay) {
-    text = '今日まで';
-    className = 'text-orange-600 font-medium';
-  } else if (diff < oneDay * 2) {
-    text = '明日まで';
-    className = 'text-yellow-600 font-medium';
-  } else {
-    text = deadlineDateTime.toLocaleDateString('ja-JP', { year: 'numeric', month: 'numeric', day: 'numeric' });
-    if (deadline.time) {
-      text += ` ${deadline.time}`;
-    }
+  // Options for formatting date and time
+  const displayOptions: Intl.DateTimeFormatOptions = {
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false, // Use 24-hour format
+  };
+
+  // If no time is specified, remove hour/minute options
+  if (!deadline.time) {
+    delete displayOptions.hour;
+    delete displayOptions.minute;
   }
 
-  return { text, className };
+  const formattedDateTime = deadlineDateTime.toLocaleDateString('ja-JP', displayOptions);
+
+  if (diff < 0) {
+    statusText = '期限切れ';
+    className = 'text-red-600 font-medium';
+  } else if (diff < oneDay) {
+    statusText = '今日まで';
+    className = 'text-orange-600 font-medium';
+  } else if (diff < oneDay * 2) {
+    statusText = '明日まで';
+    className = 'text-yellow-600 font-medium';
+  }
+
+  // Combine status text and formatted date/time
+  const fullText = statusText ? `${statusText} (${formattedDateTime})` : formattedDateTime;
+
+  return { text: fullText, className };
 }
