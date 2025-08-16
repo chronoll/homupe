@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Task, Category } from '@/lib/types';
 import { validateTask } from '@/lib/utils';
@@ -60,6 +59,7 @@ const TaskModal: React.FC<TaskModalProps> = React.memo(({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const taskToSave: Partial<Task> = {
+      ...(initialTask && initialTask.id ? { id: initialTask.id } : {}),
       title,
       description: description || undefined,
       targetTime: targetTime ? parseInt(targetTime) : undefined,
