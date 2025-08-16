@@ -304,50 +304,23 @@ const TodayTasksPage = () => {
           {!loading && !error && tasks.length === 0 ? (
             <Text c="dimmed">対象のタスクはありません。</Text>
           ) : (
-            Object.entries(
-              tasks.reduce((acc, task) => {
-                const deadlineKey = `${task.deadline?.date || 'no-deadline'}_${task.deadline?.time || 'no-time'}`;
-                if (!acc[deadlineKey]) {
-                  acc[deadlineKey] = [];
-                }
-                acc[deadlineKey].push(task);
-                return acc;
-              }, {} as Record<string, Task[]>)
-            )
-            .sort(([keyA], [keyB]) => {
-                if (keyA.startsWith('no-deadline')) return 1;
-                if (keyB.startsWith('no-deadline')) return -1;
-                return new Date(keyA.replace('_no-time','')).getTime() - new Date(keyB.replace('_no-time','')).getTime();
-            })
-            .map(([deadlineKey, tasksInGroup]) => (
-              <div key={deadlineKey} onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
-                <Title order={4} my="md">
-                  {deadlineKey.startsWith('no-deadline')
-                    ? '期限なし'
-                    : new Date(deadlineKey.split('_')[0]).toLocaleDateString('ja-JP', {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                      })}
-                </Title>
-                {tasksInGroup.map((task) => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    onComplete={handleCompleteTask}
-                    onDelete={handleDeleteTask}
-                    onStart={handleStartTimer}
-                    onStop={handleStopTimer}
-                    categoryName={categories.find(c => c.id === task.categoryId)?.name}
-                    draggable
-                    onDragStart={() => handleDragStart(task.id)}
-                    onDragEnter={() => handleDragEnter(task.id)}
-                    isDragging={draggingId === task.id}
-                  />
-                ))}
-              </div>
-            ))
+            <div onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
+              {tasks.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  onComplete={handleCompleteTask}
+                  onDelete={handleDeleteTask}
+                  onStart={handleStartTimer}
+                  onStop={handleStopTimer}
+                  categoryName={categories.find(c => c.id === task.categoryId)?.name}
+                  draggable
+                  onDragStart={() => handleDragStart(task.id)}
+                  onDragEnter={() => handleDragEnter(task.id)}
+                  isDragging={draggingId === task.id}
+                />
+              ))}
+            </div>
           )}
         </Container>
       </AppShell.Main>
