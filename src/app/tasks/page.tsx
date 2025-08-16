@@ -26,10 +26,20 @@ const TasksPage = () => {
   const [opened, { toggle }] = useDisclosure();
 
   const uncategorizedTasks = tasks.filter(task => !task.categoryId);
-  const categorizedTasks = categories.map(category => ({
-    category,
-    tasks: tasks.filter(task => task.categoryId === category.id),
-  }));
+  const uncategorizedTotalTargetTime = uncategorizedTasks.reduce((sum, task) => sum + (task.targetTime || 0), 0);
+  const uncategorizedTotalElapsedTime = uncategorizedTasks.reduce((sum, task) => sum + task.elapsedTime, 0);
+
+  const categorizedTasks = categories.map(category => {
+    const catTasks = tasks.filter(task => task.categoryId === category.id);
+    const totalTargetTime = catTasks.reduce((sum, task) => sum + (task.targetTime || 0), 0);
+    const totalElapsedTime = catTasks.reduce((sum, task) => sum + task.elapsedTime, 0);
+    return {
+      category,
+      tasks: catTasks,
+      totalTargetTime,
+      totalElapsedTime,
+    };
+  });
 
   const fetchTasksAndCategories = useCallback(async () => {
     try {
@@ -273,7 +283,7 @@ const TasksPage = () => {
 
           {!loading && !error && (
             <>
-              {categorizedTasks.map(({ category, tasks: catTasks }) => (
+              {categorizedTasks.map(({ category, tasks: catTasks, totalTargetTime, totalElapsedTime }) => (
                 <CategorySection
                   key={category.id}
                   category={category}
@@ -284,6 +294,8 @@ const TasksPage = () => {
                   onStopTimer={handleStopTimer}
                   onCreateTask={openCreateTaskModal}
                   onReorderTasks={handleReorderTasks}
+                  totalTargetTime={totalTargetTime}
+                  totalElapsedTime={totalElapsedTime}
                 />
               ))}
               {uncategorizedTasks.length > 0 && (
@@ -295,6 +307,8 @@ const TasksPage = () => {
                   onStopTimer={handleStopTimer}
                   onCreateTask={openCreateTaskModal}
                   onReorderTasks={handleReorderTasks}
+                  totalTargetTime={uncategorizedTotalTargetTime}
+                  totalElapsedTime={uncategorizedTotalElapsedTime}
                 />
               )}
             </>

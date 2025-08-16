@@ -1,8 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { Task, Category } from '@/lib/types';
 import TaskCard from './TaskCard';
-import { Title, Button, Paper, Text, Group } from '@mantine/core';
+import { Title, Button, Paper, Text, Group, Stack } from '@mantine/core';
+import { formatElapsedTime } from '@/lib/utils';
 
 interface CategorySectionProps {
   category?: Category; // Undefined for uncategorized tasks
@@ -13,6 +13,8 @@ interface CategorySectionProps {
   onStopTimer: (taskId: string) => void;
   onCreateTask: (categoryId?: string) => void; // Function to open task creation modal
   onReorderTasks: (taskIds: string[], categoryId?: string) => void; // New prop for reordering
+  totalTargetTime: number;
+  totalElapsedTime: number;
 }
 
 const CategorySection: React.FC<CategorySectionProps> = React.memo(({
@@ -24,6 +26,8 @@ const CategorySection: React.FC<CategorySectionProps> = React.memo(({
   onStopTimer,
   onCreateTask,
   onReorderTasks,
+  totalTargetTime,
+  totalElapsedTime,
 }) => {
   const [localTasks, setLocalTasks] = useState<Task[]>(tasks);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -94,6 +98,15 @@ const CategorySection: React.FC<CategorySectionProps> = React.memo(({
             />
           ))}
         </div>
+      )}
+      {tasks.length > 0 && (
+        <Group justify="flex-end" mt="md" pt="md" style={{ borderTop: '1px solid var(--mantine-color-gray-2)' }}>
+          <Stack gap={0} align="flex-end">
+            <Text size="sm" c="dimmed">カテゴリ合計</Text>
+            <Text>計測: {formatElapsedTime(totalElapsedTime)}</Text>
+            <Text>目標: {formatElapsedTime(totalTargetTime)}</Text>
+          </Stack>
+        </Group>
       )}
     </Paper>
   );
