@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Task } from '@/lib/types';
 import { formatDeadline, formatElapsedTime } from '@/lib/utils';
 import { showNotification } from '@/lib/notifications';
-import { Card, Group, Text, Button, Stack } from '@mantine/core';
+import { Card, Group, Text, Button, Stack, Grid } from '@mantine/core';
 
 interface TaskCardProps {
   task: Task;
@@ -91,60 +92,58 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({
       onDragLeave={onDragLeave}
       style={{ opacity: isDragging ? 0.5 : 1, borderColor: isDragging ? 'var(--mantine-color-blue-5)' : undefined }}
     >
-      <Stack gap="xs">
-        {/* Top Section: Title and Description */}
-        <Stack gap={0} mb="md">
-            <Text fw={500} size="lg">{task.title}</Text>
+        <Grid align="center">
+            <Grid.Col span="auto">
+                <Text fw={500} size="lg" truncate>{task.title}</Text>
+            </Grid.Col>
+            <Grid.Col span="content">
+                <Group gap="md">
+                    {task.targetTime && (
+                    <Stack gap={0} align="end">
+                        <Text size="xs" c="dimmed">目標</Text>
+                        <Text size="lg" c="dimmed">{formatElapsedTime(task.targetTime)}</Text>
+                    </Stack>
+                    )}
+                    <Stack gap={0} align="end">
+                        <Text size="xs" c="dimmed">計測</Text>
+                        <Text size="lg" c={timeColor} fw={isOverTarget ? 700 : 400}>
+                            {formatElapsedTime(displayTime)}
+                        </Text>
+                    </Stack>
+                    {!task.isRunning ? (
+                        <Button size="xs" variant="light" color="blue" onClick={() => onStart(task.id)}>
+                        開始
+                        </Button>
+                    ) : (
+                        <Button size="xs" variant="light" color="yellow" onClick={() => onStop(task.id)}>
+                        停止
+                        </Button>
+                    )}
+                </Group>
+            </Grid.Col>
+        </Grid>
+
+        {(task.description || task.deadline) && (
+            <Stack gap="xs" mt="md">
             {task.description && (
                 <Text c="dimmed" size="sm">{task.description}</Text>
             )}
-        </Stack>
-
-        {/* Middle Section: Timers and Controls */}
-        <Group justify="space-between" align="center">
-          <Group gap="md" align="center">
-            {task.targetTime && (
-              <Stack gap={0}>
-                <Text size="xs" c="dimmed">目標</Text>
-                <Text size="lg" c="dimmed">{formatElapsedTime(task.targetTime)}</Text>
-              </Stack>
-            )}
-            <Stack gap={0}>
-              <Text size="xs" c="dimmed">計測</Text>
-              <Text size="lg" c={timeColor} fw={isOverTarget ? 700 : 400}>
-                {formatElapsedTime(displayTime)}
-              </Text>
-            </Stack>
-          </Group>
-
-          {!task.isRunning ? (
-            <Button size="xs" variant="light" color="blue" onClick={() => onStart(task.id)}>
-              開始
-            </Button>
-          ) : (
-            <Button size="xs" variant="light" color="yellow" onClick={() => onStop(task.id)}>
-              停止
-            </Button>
-          )}
-        </Group>
-
-        {/* Bottom Section: Deadline and Actions */}
-        <Group justify="space-between" align="center" mt="sm">
             {task.deadline && (
                 <Text size="sm" className={deadlineClass}>
                 期限: {deadlineText}
                 </Text>
             )}
-            <Group justify="flex-end" gap="xs" style={{ flexGrow: 1}}>
-                <Button variant="light" color="green" size="xs" onClick={() => onComplete(task.id)}>
-                    完了
-                </Button>
-                <Button variant="light" color="red" size="xs" onClick={() => onDelete(task.id)}>
-                    削除
-                </Button>
-            </Group>
+            </Stack>
+        )}
+
+        <Group justify="flex-end" mt="md">
+            <Button variant="light" color="green" size="xs" onClick={() => onComplete(task.id)}>
+            完了
+            </Button>
+            <Button variant="light" color="red" size="xs" onClick={() => onDelete(task.id)}>
+            削除
+            </Button>
         </Group>
-      </Stack>
     </Card>
   );
 });
