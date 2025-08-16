@@ -8,7 +8,7 @@ import CategoryModal from '@/components/CategoryModal';
 import FloatingCreateButton from '@/components/FloatingCreateButton';
 import { requestNotificationPermission } from '@/lib/notifications';
 import AppHeader from '@/components/AppHeader';
-import { AppShell, Container, Title, Text, Paper, SimpleGrid, Stack } from '@mantine/core';
+import { AppShell, Container, Title, Text, Paper, SimpleGrid, Stack, Grid, Group } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { formatElapsedTime } from '@/lib/utils';
 
@@ -143,20 +143,28 @@ const TodayTasksPage = () => {
           <Title order={1} mb="lg">今日のタスク</Title>
 
           <Paper shadow="sm" p="lg" withBorder mb="xl">
-            <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
-              <Stack align="center" gap={0}>
-                <Text size="sm" c="dimmed">タスク数</Text>
-                <Text size="xl" fw={700}>{tasks.length}</Text>
-              </Stack>
-              <Stack align="center" gap={0}>
-                <Text size="sm" c="dimmed">合計計測時間</Text>
-                <Text size="xl" fw={700}>{formatElapsedTime(totalElapsedTime)}</Text>
-              </Stack>
-              <Stack align="center" gap={0}>
-                <Text size="sm" c="dimmed">合計目標時間</Text>
-                <Text size="xl" fw={700}>{formatElapsedTime(totalTargetTime)}</Text>
-              </Stack>
-            </SimpleGrid>
+            <Grid align="center">
+              <Grid.Col span="auto">
+                <Stack align="center" gap={0}>
+                    <Text size="sm" c="dimmed">タスク数</Text>
+                    <Text size="xl" fw={700}>{tasks.length}</Text>
+                </Stack>
+              </Grid.Col>
+              <Grid.Col span="content">
+                <Group gap="md">
+                    <Stack gap={0} align="end">
+                        <Text size="xs" c="dimmed">合計目標</Text>
+                        <Text size="lg" c="dimmed">{formatElapsedTime(totalTargetTime)}</Text>
+                    </Stack>
+                    <Stack gap={0} align="end">
+                        <Text size="xs" c="dimmed">合計計測</Text>
+                        <Text size="lg">{formatElapsedTime(totalElapsedTime)}</Text>
+                    </Stack>
+                    {/* Spacer to align with TaskCard's start/stop button */}
+                    <div style={{ width: '60px' }} /> 
+                </Group>
+              </Grid.Col>
+            </Grid>
           </Paper>
 
           {loading && <Text>読み込み中...</Text>}
