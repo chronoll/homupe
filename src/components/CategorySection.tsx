@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Task, Category } from '@/lib/types';
 import TaskCard from './TaskCard';
@@ -101,11 +102,18 @@ const CategorySection: React.FC<CategorySectionProps> = React.memo(({
       )}
       {tasks.length > 0 && (
         <Group justify="flex-end" mt="md" pt="md" style={{ borderTop: '1px solid var(--mantine-color-gray-2)' }}>
-          <Stack gap={0} align="flex-end">
-            <Text size="sm" c="dimmed">カテゴリ合計</Text>
-            <Text>計測: {formatElapsedTime(totalElapsedTime)}</Text>
-            <Text>目標: {formatElapsedTime(totalTargetTime)}</Text>
-          </Stack>
+          <Group gap="md">
+              <Stack gap={0} align="end">
+                  <Text size="xs" c="dimmed">合計目標</Text>
+                  <Text size="lg" c="dimmed">{formatElapsedTime(totalTargetTime)}</Text>
+              </Stack>
+              <Stack gap={0} align="end">
+                  <Text size="xs" c="dimmed">合計計測</Text>
+                  <Text size="lg">{formatElapsedTime(totalElapsedTime)}</Text>
+              </Stack>
+              {/* Spacer to align with TaskCard's start/stop button */}
+              <div style={{ width: '60px' }} /> 
+          </Group>
         </Group>
       )}
     </Paper>
