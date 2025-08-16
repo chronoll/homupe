@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Task } from '@/lib/types';
 import { formatDeadline, formatElapsedTime } from '@/lib/utils';
@@ -17,6 +16,7 @@ interface TaskCardProps {
   onDragLeave?: () => void;
   isDragging?: boolean;
   categoryName?: string;
+  onEdit: (task: Task) => void;
 }
 
 const TaskCard: React.FC<TaskCardProps> = React.memo(({
@@ -31,6 +31,7 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({
   onDragLeave,
   isDragging = false,
   categoryName,
+  onEdit,
 }) => {
   const { text: deadlineText, className: deadlineClass } = formatDeadline(task.deadline);
 
@@ -142,11 +143,14 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({
                 <div /> // Empty div for spacing
             )}
             <Group gap="xs">
+                <Button variant="light" color="blue" size="xs" onClick={() => onEdit(task)}>
+                    編集
+                </Button>
                 <Button variant="light" color="green" size="xs" onClick={() => onComplete(task.id)}>
-                完了
+                    完了
                 </Button>
                 <Button variant="light" color="red" size="xs" onClick={() => onDelete(task.id)}>
-                削除
+                    削除
                 </Button>
             </Group>
         </Group>

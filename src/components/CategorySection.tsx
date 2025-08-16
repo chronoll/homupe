@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Task, Category } from '@/lib/types';
 import TaskCard from './TaskCard';
@@ -16,6 +15,7 @@ interface CategorySectionProps {
   onReorderTasks: (taskIds: string[], categoryId?: string) => void; // New prop for reordering
   totalTargetTime: number;
   totalElapsedTime: number;
+  onEditTask: (task: Task) => void;
 }
 
 const CategorySection: React.FC<CategorySectionProps> = React.memo(({
@@ -29,6 +29,7 @@ const CategorySection: React.FC<CategorySectionProps> = React.memo(({
   onReorderTasks,
   totalTargetTime,
   totalElapsedTime,
+  onEditTask,
 }) => {
   const [localTasks, setLocalTasks] = useState<Task[]>(tasks);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -96,6 +97,7 @@ const CategorySection: React.FC<CategorySectionProps> = React.memo(({
               onDragEnter={() => handleDragEnter(task.id)}
               onDragLeave={handleDragLeave}
               isDragging={draggingId === task.id}
+              onEdit={onEditTask}
             />
           ))}
         </div>

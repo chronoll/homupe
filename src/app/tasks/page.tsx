@@ -296,6 +296,7 @@ const TasksPage = () => {
                   onReorderTasks={handleReorderTasks}
                   totalTargetTime={totalTargetTime}
                   totalElapsedTime={totalElapsedTime}
+                  onEditTask={openEditTaskModal}
                 />
               ))}
               {uncategorizedTasks.length > 0 && (
@@ -309,6 +310,7 @@ const TasksPage = () => {
                   onReorderTasks={handleReorderTasks}
                   totalTargetTime={uncategorizedTotalTargetTime}
                   totalElapsedTime={uncategorizedTotalElapsedTime}
+                  onEditTask={openEditTaskModal}
                 />
               )}
             </>

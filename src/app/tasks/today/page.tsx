@@ -230,6 +230,11 @@ const TodayTasksPage = () => {
     setIsTaskModalOpen(true);
   };
 
+  const openEditTaskModal = (task: Task) => {
+    setEditingTask(task);
+    setIsTaskModalOpen(true);
+  };
+
   const openCreateCategoryModal = () => {
     setIsCategoryModalOpen(true);
   };
@@ -318,6 +323,7 @@ const TodayTasksPage = () => {
                   onDragStart={() => handleDragStart(task.id)}
                   onDragEnter={() => handleDragEnter(task.id)}
                   isDragging={draggingId === task.id}
+                  onEdit={openEditTaskModal}
                 />
               ))}
             </div>
