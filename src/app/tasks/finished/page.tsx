@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Task } from '@/lib/types';
+import { Task, Category } from '@/lib/types';
 import { formatElapsedTime } from '@/lib/utils';
 import { Container, Title, Text, Paper, SimpleGrid, Group, Stack, AppShell, rem, TextInput } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
@@ -9,21 +9,29 @@ import AppHeader from '@/components/AppHeader';
 
 const FinishedTasksPage = () => {
   const [completedTasks, setCompletedTasks] = useState<Task[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [opened, { toggle }] = useDisclosure();
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    const fetchCompletedTasks = async () => {
+    const fetchCompletedTasksAndCategories = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/tasks');
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const tasks: Task[] = await response.json();
+        const [tasksRes, categoriesRes] = await Promise.all([
+          fetch('/api/tasks'),
+          fetch('/api/categories')
+        ]);
+
+        if (!tasksRes.ok) throw new Error(`HTTP error! status: ${tasksRes.status}`);
+        if (!categoriesRes.ok) throw new Error(`HTTP error! status: ${categoriesRes.status}`);
+        
+        const tasks: Task[] = await tasksRes.json();
+        const fetchedCategories: Category[] = await categoriesRes.json();
+
         setCompletedTasks(tasks.filter(task => task.completedAt));
+        setCategories(fetchedCategories);
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : 'An unknown error occurred');
       } finally {
@@ -31,7 +39,7 @@ const FinishedTasksPage = () => {
       }
     };
 
-    fetchCompletedTasks();
+    fetchCompletedTasksAndCategories();
   }, []);
 
   const totalCompletedTime = completedTasks.reduce((sum, task) => sum + task.elapsedTime, 0);
@@ -40,6 +48,30 @@ const FinishedTasksPage = () => {
   const filteredTasks = completedTasks.filter(task =>
     task.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const groupedTasks = filteredTasks.reduce((acc, task) => {
+    const date = new Date(task.completedAt!).toISOString().split('T')[0]; // YYYY-MM-DD
+    if (!acc[date]) {
+      acc[date] = [];
+    }
+    acc[date].push(task);
+    return acc;
+  }, {} as Record<string, Task[]>);
+
+  for (const date in groupedTasks) {
+    groupedTasks[date].sort((a, b) => {
+      const categoryA = categories.find(c => c.id === a.categoryId);
+      const categoryB = categories.find(c => c.id === b.categoryId);
+      const orderA = categoryA ? categoryA.order : Infinity;
+      const orderB = categoryB ? categoryB.order : Infinity;
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      return (a.updatedAt || 0) - (b.updatedAt || 0); // Fallback sort
+    });
+  }
+
+  const sortedDates = Object.keys(groupedTasks).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
 
   return (
     <AppShell
@@ -90,42 +122,49 @@ const FinishedTasksPage = () => {
           ) : (
             <>
               <Text mb="sm" c="dimmed">表示件数: {filteredTasks.length}件</Text>
-              <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
-                {filteredTasks.map((task) => {
-                  const completedDate = task.completedAt ? new Date(task.completedAt).toLocaleDateString('ja-JP') : 'N/A';
-                  const timeDifference = task.elapsedTime - (task.targetTime || 0);
-                  const timeDiffColor = timeDifference > 0 ? 'red' : 'green';
+              {sortedDates.map(date => (
+                <div key={date}>
+                  <Title order={2} size="h4" my="md" pb={5} style={{ borderBottom: '1px solid var(--mantine-color-gray-3)' }}>
+                    {new Date(date).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' })}
+                  </Title>
+                  <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
+                    {groupedTasks[date].map((task) => {
+                      const completedDate = task.completedAt ? new Date(task.completedAt).toLocaleDateString('ja-JP') : 'N/A';
+                      const timeDifference = task.elapsedTime - (task.targetTime || 0);
+                      const timeDiffColor = timeDifference > 0 ? 'red' : 'green';
 
-                  return (
-                    <Paper key={task.id} shadow="xs" p="md" withBorder>
-                      <Title order={4} mb="xs">{task.title}</Title>
-                      {task.description && (
-                        <Text c="dimmed" size="sm" mb="xs">{task.description}</Text>
-                      )}
-                      <Stack gap={4} mt="sm">
-                        <Group justify="space-between">
-                          <Text size="sm" c="dimmed">完了日:</Text>
-                          <Text size="sm" fw={500}>{completedDate}</Text>
-                        </Group>
-                        <Group justify="space-between">
-                          <Text size="sm" c="dimmed">計測時間:</Text>
-                          <Text size="sm" fw={500}>{formatElapsedTime(task.elapsedTime)}</Text>
-                        </Group>
-                        <Group justify="space-between">
-                          <Text size="sm" c="dimmed">目標時間:</Text>
-                          <Text size="sm" fw={500}>{task.targetTime ? formatElapsedTime(task.targetTime) : 'なし'}</Text>
-                        </Group>
-                        <Group justify="space-between">
-                          <Text size="sm" c="dimmed">差分:</Text>
-                          <Text size="sm" fw={500} c={timeDiffColor}>
-                            {formatElapsedTime(Math.abs(timeDifference))} {timeDifference > 0 ? '超過' : '短縮'}
-                          </Text>
-                        </Group>
-                      </Stack>
-                    </Paper>
-                  );
-                })}
-              </SimpleGrid>
+                      return (
+                        <Paper key={task.id} shadow="xs" p="md" withBorder>
+                          <Title order={4} mb="xs">{task.title}</Title>
+                          {task.description && (
+                            <Text c="dimmed" size="sm" mb="xs">{task.description}</Text>
+                          )}
+                          <Stack gap={4} mt="sm">
+                            <Group justify="space-between">
+                              <Text size="sm" c="dimmed">完了日:</Text>
+                              <Text size="sm" fw={500}>{completedDate}</Text>
+                            </Group>
+                            <Group justify="space-between">
+                              <Text size="sm" c="dimmed">計測時間:</Text>
+                              <Text size="sm" fw={500}>{formatElapsedTime(task.elapsedTime)}</Text>
+                            </Group>
+                            <Group justify="space-between">
+                              <Text size="sm" c="dimmed">目標時間:</Text>
+                              <Text size="sm" fw={500}>{task.targetTime ? formatElapsedTime(task.targetTime) : 'なし'}</Text>
+                            </Group>
+                            <Group justify="space-between">
+                              <Text size="sm" c="dimmed">差分:</Text>
+                              <Text size="sm" fw={500} c={timeDiffColor}>
+                                {formatElapsedTime(Math.abs(timeDifference))} {timeDifference > 0 ? '超過' : '短縮'}
+                              </Text>
+                            </Group>
+                          </Stack>
+                        </Paper>
+                      );
+                    })}
+                  </SimpleGrid>
+                </div>
+              ))}
             </>
           )}
         </Container>
