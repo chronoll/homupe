@@ -20,17 +20,17 @@ const AppHeader: React.FC<AppHeaderProps> = React.memo(({
       <Group ml="auto" gap="md">
         <Link href="/tasks/today" passHref>
           <Button variant={pathname === '/tasks/today' ? 'filled' : 'light'}>
-            今日のタスク
+            今日
           </Button>
         </Link>
         <Link href="/tasks" passHref>
           <Button variant={pathname === '/tasks' ? 'filled' : 'light'}>
-            カテゴリ別タスク
+            カテゴリ別
           </Button>
         </Link>
         <Link href="/tasks/finished" passHref>
           <Button variant={pathname === '/tasks/finished' ? 'filled' : 'light'}>
-            完了タスク
+            完了
           </Button>
         </Link>
         <Button onClick={onAddCategory}>+ カテゴリ作成</Button>

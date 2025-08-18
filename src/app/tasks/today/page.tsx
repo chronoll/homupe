@@ -253,7 +253,7 @@ const TodayTasksPage = () => {
 
       <AppShell.Main>
         <Container size="lg" py="md">
-          <Title order={1} mb="lg">今日のタスク</Title>
+          <Title order={1} mb="lg">今日</Title>
 
           <Paper shadow="sm" p="lg" withBorder mb="xl">
             <Grid align="center">

@@ -49,7 +49,7 @@ const FinishedTasksPage = () => {
 
       <AppShell.Main>
         <Container size="lg" py="md">
-          <Title order={1} mb="lg">完了したタスク</Title>
+          <Title order={1} mb="lg">完了</Title>
 
           <Paper shadow="sm" p="lg" withBorder mb="xl">
             <Title order={2} mb="md">統計</Title>
