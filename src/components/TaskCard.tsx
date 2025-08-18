@@ -117,25 +117,18 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({
     >
         <Grid align="center" gutter="md">
             <Grid.Col span="auto">
-                <Group justify="space-between" align="flex-start">
-                    <Stack gap={0}>
-                        <Text fw={500} size="lg" truncate>{task.title}</Text>
-                        {categoryName && (
-                            <Text c="dimmed" size="xs">{categoryName}</Text>
-                        )}
-                    </Stack>
-                    {!task.isRunning && (
-                        <Button variant="light" color="green" size="xs" onClick={() => onComplete(task.id)}>
-                            完了
-                        </Button>
+                <Stack gap={0}>
+                    <Text fw={500} size="lg" truncate>{task.title}</Text>
+                    {categoryName && (
+                        <Text c="dimmed" size="xs">{categoryName}</Text>
                     )}
-                </Group>
-                {task.description && (
-                    <Text c="dimmed" size="sm" truncate mt={4}>{task.description}</Text>
-                )}
+                    {task.description && (
+                        <Text c="dimmed" size="sm" truncate mt={4}>{task.description}</Text>
+                    )}
+                </Stack>
             </Grid.Col>
             <Grid.Col span="content">
-                <Group gap="md" align="flex-start">
+                <Group gap="md" align="center">
                     {task.targetTime && (
                     <Stack gap={0} align="end">
                         <Text size="xs" c="dimmed">目標</Text>
@@ -154,9 +147,14 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({
                         )}
                     </Stack>
                     {!task.isRunning ? (
-                        <Button size="xs" variant="light" color="blue" onClick={() => onStart(task.id)}>
-                            開始
-                        </Button>
+                        <Group gap="xs">
+                            <Button size="xs" variant="light" color="blue" onClick={() => onStart(task.id)}>
+                                開始
+                            </Button>
+                            <Button variant="light" color="green" size="xs" onClick={() => onComplete(task.id)}>
+                                完了
+                            </Button>
+                        </Group>
                     ) : (
                         <Button size="xs" variant="light" color="yellow" onClick={() => onStop(task.id)}>
                             停止
