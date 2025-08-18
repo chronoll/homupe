@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Container, Title, Card, Text, Badge, Group, Stack, Loader, Alert } from '@mantine/core';
-import { IconExternalLink, IconCalendar, IconAlertCircle } from '@tabler/icons-react';
+import { IconCalendar, IconAlertCircle } from '@tabler/icons-react';
 import BlogBackground from '@/components/BlogBackground';
 
 interface BlogPost {
@@ -12,7 +12,6 @@ interface BlogPost {
   date: string;
   tags: string[];
   category: string;
-  url: string;
 }
 
 export default function BlogPage() {
@@ -106,18 +105,8 @@ export default function BlogPage() {
                   e.currentTarget.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.1)';
                 }}
               >
-              <Group justify="space-between" mb="xs">
+              <Group justify="flex-start" mb="xs">
                 <Title order={3}>{post.title}</Title>
-                {post.url && (
-                  <a 
-                    href={post.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <IconExternalLink size={20} style={{ cursor: 'pointer' }} />
-                  </a>
-                )}
               </Group>
 
               <Group justify="space-between" align="center">
