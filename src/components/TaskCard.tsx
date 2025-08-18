@@ -35,7 +35,7 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({
   onEdit,
   onResetTimer,
 }) => {
-  const { text: deadlineText, className: deadlineClass } = formatDeadline(task.deadline);
+  const { text: deadlineText, color: deadlineColor, fontWeight: deadlineFontWeight } = formatDeadline(task.deadline);
 
   const [displayTime, setDisplayTime] = useState(task.elapsedTime);
   const [isOverTarget, setIsOverTarget] = useState(false);
@@ -165,8 +165,8 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({
         </Grid>
 
         <Group justify="space-between" mt="md" align="center">
-            {task.deadline ? (
-                <Text size="sm" className={deadlineClass}>
+            {task.deadline && deadlineText ? (
+                <Text size="sm" c={deadlineColor} fw={deadlineFontWeight}>
                     期限: {deadlineText}
                 </Text>
             ) : (

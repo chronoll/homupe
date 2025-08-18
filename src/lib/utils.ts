@@ -75,52 +75,46 @@ export function formatWorkTime(totalMinutes: number): string {
 }
 
 /**
- * Formats a deadline object into a readable string and determines its status.
+ * Formats a deadline object into a readable string and determines its style.
  * @param deadline The deadline object.
- * @returns An object containing the formatted string and a status class.
+ * @returns An object containing the formatted text and style properties.
  */
-export function formatDeadline(deadline?: Task['deadline']): { text: string; className: string } {
-  if (!deadline?.date) return { text: 'No deadline', className: '' };
+export function formatDeadline(deadline?: Task['deadline']): { text: string; color: string; fontWeight: number } {
+  if (!deadline?.date) {
+    return { text: '', color: 'gray', fontWeight: 400 };
+  }
 
-  const deadlineDateTime = new Date(deadline.date + (deadline.time ? `T${deadline.time}` : ''));
-  const now = new Date();
-  const diff = deadlineDateTime.getTime() - now.getTime(); // milliseconds
-  const oneDay = 1000 * 60 * 60 * 24;
+  const deadlineDateTime = new Date(deadline.date + (deadline.time ? `T${deadline.time}` : 'T23:59:59'));
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-  let statusText = '';
-  let className = '';
+  let color = 'gray';
+  let fontWeight = 400;
 
-  // Options for formatting date and time
+  if (deadlineDateTime < today) {
+    // Expired
+    color = 'red';
+    fontWeight = 700;
+  } else if (deadlineDateTime >= today && deadlineDateTime < new Date(today.getTime() + 24 * 60 * 60 * 1000)) {
+    // Today is the deadline
+    color = 'orange';
+    fontWeight = 400; // Not bold, just orange
+  }
+
   const displayOptions: Intl.DateTimeFormatOptions = {
     year: 'numeric',
     month: 'numeric',
     day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false, // Use 24-hour format
   };
 
-  // If no time is specified, remove hour/minute options
-  if (!deadline.time) {
-    delete displayOptions.hour;
-    delete displayOptions.minute;
+  if (deadline.time) {
+    displayOptions.hour = '2-digit';
+    displayOptions.minute = '2-digit';
+    displayOptions.hour12 = false;
   }
 
   const formattedDateTime = deadlineDateTime.toLocaleDateString('ja-JP', displayOptions);
 
-  if (diff < 0) {
-    statusText = '期限切れ';
-    className = 'text-red-600 font-medium';
-  } else if (diff < oneDay) {
-    statusText = '今日まで';
-    className = 'text-orange-600 font-medium';
-  } else if (diff < oneDay * 2) {
-    statusText = '明日まで';
-    className = 'text-yellow-600 font-medium';
-  }
-
-  // Combine status text and formatted date/time
-  const fullText = statusText ? `${statusText} (${formattedDateTime})` : formattedDateTime;
-
-  return { text: fullText, className };
+  return { text: formattedDateTime, color, fontWeight };
 }
