@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Container, Title, Card, Text, Badge, Group, Stack, Loader, Alert } from '@mantine/core';
 import { IconExternalLink, IconCalendar, IconAlertCircle } from '@tabler/icons-react';
 
@@ -14,6 +15,7 @@ interface BlogPost {
 }
 
 export default function BlogPage() {
+  const router = useRouter();
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -75,11 +77,24 @@ export default function BlogPage() {
           <Text c="dimmed">ブログ記事がありません。</Text>
         ) : (
           posts.map((post) => (
-            <Card key={post.id} shadow="sm" padding="lg" radius="md" withBorder>
+            <Card 
+              key={post.id} 
+              shadow="sm" 
+              padding="lg" 
+              radius="md" 
+              withBorder
+              style={{ cursor: 'pointer' }}
+              onClick={() => router.push(`/blog/${post.id}`)}
+            >
               <Group justify="space-between" mb="xs">
                 <Title order={3}>{post.title}</Title>
                 {post.url && (
-                  <a href={post.url} target="_blank" rel="noopener noreferrer">
+                  <a 
+                    href={post.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <IconExternalLink size={20} style={{ cursor: 'pointer' }} />
                   </a>
                 )}
