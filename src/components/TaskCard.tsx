@@ -140,11 +140,6 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({
                         <Text size="lg" c={timeColor} fw={isOverTarget ? 700 : 400}>
                             {formatElapsedTime(displayTime)}
                         </Text>
-                        {/* {estimatedEndTime && (
-                            <Text size="xs" c="dimmed">
-                            (終了予定: {estimatedEndTime.getHours().toString().padStart(2, '0')}:{estimatedEndTime.getMinutes().toString().padStart(2, '0')})
-                            </Text>
-                        )} */}
                     </Stack>
                     {!task.isRunning ? (
                         <Button size="xs" variant="light" color="blue" onClick={() => onStart(task.id)}>
@@ -156,6 +151,14 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({
                         </Button>
                     )}
                 </Group>
+                {/* 終了予定時刻のための固定領域をここに配置 */}
+                <div style={{ height: '15px', position: 'relative' }}>
+                    {estimatedEndTime && (
+                        <Text size="xs" c="dimmed" style={{ position: 'absolute', bottom: '0', right: '0' }}>
+                        (終了予定: {estimatedEndTime.getHours().toString().padStart(2, '0')}:{estimatedEndTime.getMinutes().toString().padStart(2, '0')})
+                        </Text>
+                    )}
+                </div>
             </Grid.Col>
         </Grid>
 
