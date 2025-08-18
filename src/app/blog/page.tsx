@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Container, Title, Card, Text, Badge, Group, Stack, Loader, Alert } from '@mantine/core';
 import { IconExternalLink, IconCalendar, IconAlertCircle } from '@tabler/icons-react';
+import BlogBackground from '@/components/BlogBackground';
 
 interface BlogPost {
   id: string;
@@ -50,42 +51,61 @@ export default function BlogPage() {
 
   if (loading) {
     return (
-      <Container size="lg" py="xl">
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-          <Loader size="lg" />
-        </div>
-      </Container>
+      <BlogBackground>
+        <Container size="lg" py="xl">
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+            <Loader size="lg" />
+          </div>
+        </Container>
+      </BlogBackground>
     );
   }
 
   if (error) {
     return (
-      <Container size="lg" py="xl">
-        <Alert icon={<IconAlertCircle size="1rem" />} title="エラー" color="red">
-          {error}
-        </Alert>
-      </Container>
+      <BlogBackground>
+        <Container size="lg" py="xl">
+          <Alert icon={<IconAlertCircle size="1rem" />} title="エラー" color="red">
+            {error}
+          </Alert>
+        </Container>
+      </BlogBackground>
     );
   }
 
   return (
-    <Container size="lg" py="xl">
-      <Title order={1} mb="xl">Blog</Title>
+    <BlogBackground>
+      <Container size="lg" py="xl">
+        <Title order={1} mb="xl" c="white">Blog</Title>
       
-      <Stack gap="md">
-        {posts.length === 0 ? (
-          <Text c="dimmed">ブログ記事がありません。</Text>
-        ) : (
-          posts.map((post) => (
-            <Card 
-              key={post.id} 
-              shadow="sm" 
-              padding="lg" 
-              radius="md" 
-              withBorder
-              style={{ cursor: 'pointer' }}
-              onClick={() => router.push(`/blog/${post.id}`)}
-            >
+        <Stack gap="md">
+          {posts.length === 0 ? (
+            <Text c="white">ブログ記事がありません。</Text>
+          ) : (
+            posts.map((post) => (
+              <Card 
+                key={post.id} 
+                shadow="xl" 
+                padding="lg" 
+                radius="md" 
+                withBorder
+                style={{ 
+                  cursor: 'pointer',
+                  background: 'rgba(255, 255, 255, 0.95)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  transition: 'all 0.3s ease',
+                }}
+                onClick={() => router.push(`/blog/${post.id}`)}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = '0 20px 40px rgba(0, 0, 0, 0.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.1)';
+                }}
+              >
               <Group justify="space-between" mb="xs">
                 <Title order={3}>{post.title}</Title>
                 {post.url && (
@@ -123,8 +143,9 @@ export default function BlogPage() {
               </Group>
             </Card>
           ))
-        )}
-      </Stack>
-    </Container>
+          )}
+        </Stack>
+      </Container>
+    </BlogBackground>
   );
 }

@@ -6,6 +6,7 @@ import { Container, Title, Group, Badge, Text, Loader, Alert, Button, Box } from
 import { IconArrowLeft, IconCalendar, IconAlertCircle } from '@tabler/icons-react';
 import Link from 'next/link';
 import NotionBlockRenderer from '@/components/NotionBlockRenderer';
+import BlogBackground from '@/components/BlogBackground';
 import { BlockObjectResponse } from '@notionhq/client/build/src/api-endpoints';
 
 interface BlogPost {
@@ -55,41 +56,61 @@ export default function BlogDetailPage() {
 
   if (loading) {
     return (
-      <Container size="md" py="xl">
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-          <Loader size="lg" />
-        </div>
-      </Container>
+      <BlogBackground>
+        <Container size="md" py="xl">
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+            <Loader size="lg" />
+          </div>
+        </Container>
+      </BlogBackground>
     );
   }
 
   if (error || !post) {
     return (
-      <Container size="md" py="xl">
-        <Alert icon={<IconAlertCircle size="1rem" />} title="エラー" color="red" mb="md">
-          {error || 'ブログ記事が見つかりません'}
-        </Alert>
-        <Button component={Link} href="/blog" leftSection={<IconArrowLeft size={16} />}>
-          ブログ一覧に戻る
-        </Button>
-      </Container>
+      <BlogBackground>
+        <Container size="md" py="xl">
+          <Alert icon={<IconAlertCircle size="1rem" />} title="エラー" color="red" mb="md">
+            {error || 'ブログ記事が見つかりません'}
+          </Alert>
+          <Button component={Link} href="/blog" leftSection={<IconArrowLeft size={16} />}>
+            ブログ一覧に戻る
+          </Button>
+        </Container>
+      </BlogBackground>
     );
   }
 
   return (
-    <Container size="md" py="xl">
-      <Button 
-        component={Link} 
-        href="/blog" 
-        variant="subtle" 
-        leftSection={<IconArrowLeft size={16} />}
-        mb="xl"
-      >
-        ブログ一覧に戻る
-      </Button>
+    <BlogBackground>
+      <Container size="md" py="xl">
+        <Button 
+          component={Link} 
+          href="/blog" 
+          variant="light" 
+          leftSection={<IconArrowLeft size={16} />}
+          mb="xl"
+          c="white"
+          style={{
+            background: 'rgba(255, 255, 255, 0.1)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+          }}
+        >
+          ブログ一覧に戻る
+        </Button>
 
-      <Box mb="xl">
-        <Title order={1} mb="md">{post.title}</Title>
+        <Box 
+          mb="xl"
+          style={{
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            borderRadius: '12px',
+            padding: '2rem',
+          }}
+        >
+          <Title order={1} mb="md">{post.title}</Title>
         
         <Group justify="space-between" align="center" mb="xl">
           <Group gap="xs">
@@ -111,12 +132,21 @@ export default function BlogDetailPage() {
               {formatDate(post.date)}
             </Text>
           </Group>
-        </Group>
-      </Box>
+          </Group>
+        </Box>
 
-      <Box>
-        <NotionBlockRenderer blocks={post.blocks} />
-      </Box>
-    </Container>
+        <Box
+          style={{
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            borderRadius: '12px',
+            padding: '2rem',
+          }}
+        >
+          <NotionBlockRenderer blocks={post.blocks} />
+        </Box>
+      </Container>
+    </BlogBackground>
   );
 }
