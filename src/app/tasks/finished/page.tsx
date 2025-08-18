@@ -1,10 +1,9 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { Task } from '@/lib/types';
 import { formatElapsedTime } from '@/lib/utils';
-import { Container, Title, Text, Paper, SimpleGrid, Group, Stack, AppShell, rem } from '@mantine/core';
+import { Container, Title, Text, Paper, SimpleGrid, Group, Stack, AppShell, rem, TextInput } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import AppHeader from '@/components/AppHeader';
 
@@ -13,6 +12,7 @@ const FinishedTasksPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [opened, { toggle }] = useDisclosure();
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     const fetchCompletedTasks = async () => {
@@ -36,6 +36,10 @@ const FinishedTasksPage = () => {
 
   const totalCompletedTime = completedTasks.reduce((sum, task) => sum + task.elapsedTime, 0);
   const totalTargetTime = completedTasks.reduce((sum, task) => sum + (task.targetTime || 0), 0);
+
+  const filteredTasks = completedTasks.filter(task =>
+    task.title.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <AppShell
@@ -69,48 +73,60 @@ const FinishedTasksPage = () => {
             </SimpleGrid>
           </Paper>
 
+          <TextInput
+            placeholder="タスク名で検索..."
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.currentTarget.value)}
+            mb="xl"
+          />
+
           {loading && <Text>読み込み中...</Text>}
           {error && <Text c="red">エラー: {error}</Text>}
 
           {!loading && !error && completedTasks.length === 0 ? (
             <Text c="dimmed">完了したタスクはありません。</Text>
+          ) : !loading && !error && filteredTasks.length === 0 ? (
+            <Text c="dimmed">検索条件に一致するタスクはありません。</Text>
           ) : (
-            <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
-              {completedTasks.map((task) => {
-                const completedDate = task.completedAt ? new Date(task.completedAt).toLocaleDateString('ja-JP') : 'N/A';
-                const timeDifference = task.elapsedTime - (task.targetTime || 0);
-                const timeDiffColor = timeDifference > 0 ? 'red' : 'green';
+            <>
+              <Text mb="sm" c="dimmed">表示件数: {filteredTasks.length}件</Text>
+              <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
+                {filteredTasks.map((task) => {
+                  const completedDate = task.completedAt ? new Date(task.completedAt).toLocaleDateString('ja-JP') : 'N/A';
+                  const timeDifference = task.elapsedTime - (task.targetTime || 0);
+                  const timeDiffColor = timeDifference > 0 ? 'red' : 'green';
 
-                return (
-                  <Paper key={task.id} shadow="xs" p="md" withBorder>
-                    <Title order={4} mb="xs">{task.title}</Title>
-                    {task.description && (
-                      <Text c="dimmed" size="sm" mb="xs">{task.description}</Text>
-                    )}
-                    <Stack gap={4} mt="sm">
-                      <Group justify="space-between">
-                        <Text size="sm" c="dimmed">完了日:</Text>
-                        <Text size="sm" fw={500}>{completedDate}</Text>
-                      </Group>
-                      <Group justify="space-between">
-                        <Text size="sm" c="dimmed">計測時間:</Text>
-                        <Text size="sm" fw={500}>{formatElapsedTime(task.elapsedTime)}</Text>
-                      </Group>
-                      <Group justify="space-between">
-                        <Text size="sm" c="dimmed">目標時間:</Text>
-                        <Text size="sm" fw={500}>{task.targetTime ? formatElapsedTime(task.targetTime) : 'なし'}</Text>
-                      </Group>
-                      <Group justify="space-between">
-                        <Text size="sm" c="dimmed">差分:</Text>
-                        <Text size="sm" fw={500} c={timeDiffColor}>
-                          {formatElapsedTime(Math.abs(timeDifference))} {timeDifference > 0 ? '超過' : '短縮'}
-                        </Text>
-                      </Group>
-                    </Stack>
-                  </Paper>
-                );
-              })}
-            </SimpleGrid>
+                  return (
+                    <Paper key={task.id} shadow="xs" p="md" withBorder>
+                      <Title order={4} mb="xs">{task.title}</Title>
+                      {task.description && (
+                        <Text c="dimmed" size="sm" mb="xs">{task.description}</Text>
+                      )}
+                      <Stack gap={4} mt="sm">
+                        <Group justify="space-between">
+                          <Text size="sm" c="dimmed">完了日:</Text>
+                          <Text size="sm" fw={500}>{completedDate}</Text>
+                        </Group>
+                        <Group justify="space-between">
+                          <Text size="sm" c="dimmed">計測時間:</Text>
+                          <Text size="sm" fw={500}>{formatElapsedTime(task.elapsedTime)}</Text>
+                        </Group>
+                        <Group justify="space-between">
+                          <Text size="sm" c="dimmed">目標時間:</Text>
+                          <Text size="sm" fw={500}>{task.targetTime ? formatElapsedTime(task.targetTime) : 'なし'}</Text>
+                        </Group>
+                        <Group justify="space-between">
+                          <Text size="sm" c="dimmed">差分:</Text>
+                          <Text size="sm" fw={500} c={timeDiffColor}>
+                            {formatElapsedTime(Math.abs(timeDifference))} {timeDifference > 0 ? '超過' : '短縮'}
+                          </Text>
+                        </Group>
+                      </Stack>
+                    </Paper>
+                  );
+                })}
+              </SimpleGrid>
+            </>
           )}
         </Container>
       </AppShell.Main>
