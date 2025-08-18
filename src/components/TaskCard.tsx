@@ -115,80 +115,80 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({
       onDragLeave={onDragLeave}
       style={{ opacity: isDragging ? 0.5 : 1, borderColor: isDragging ? 'var(--mantine-color-blue-5)' : undefined }}
     >
-        <Grid align="center" gutter="md">
-            <Grid.Col span="auto">
-                <Stack gap={0}>
-                    <Text fw={500} size="lg" truncate>{task.title}</Text>
-                    {categoryName && (
-                        <Text c="dimmed" size="xs">{categoryName}</Text>
-                    )}
-                    {task.description && (
-                        <Text c="dimmed" size="sm" truncate mt={4}>{task.description}</Text>
-                    )}
-                </Stack>
-            </Grid.Col>
-            <Grid.Col span="content">
-                <Group gap="md" align="center">
-                    {task.targetTime && (
-                    <Stack gap={0} align="end">
-                        <Text size="xs" c="dimmed">目標</Text>
-                        <Text size="lg" c="dimmed">{formatElapsedTime(task.targetTime)}</Text>
-                    </Stack>
-                    )}
-                    <Stack gap={0} align="end">
-                        <Text size="xs" c="dimmed">計測</Text>
-                        <Text size="lg" c={timeColor} fw={isOverTarget ? 700 : 400}>
-                            {formatElapsedTime(displayTime)}
-                        </Text>
-                    </Stack>
-                    {!task.isRunning ? (
-                        <Button size="xs" variant="light" color="blue" onClick={() => onStart(task.id)}>
-                            開始
-                        </Button>
-                    ) : (
-                        <Button size="xs" variant="light" color="yellow" onClick={() => onStop(task.id)}>
-                            停止
-                        </Button>
-                    )}
-                </Group>
-                {/* 終了予定時刻のための固定領域をここに配置 */}
-                <div style={{ height: '12px', position: 'relative' }}>
-                    {estimatedEndTime && (
-                        <Text size="xs" c="dimmed" style={{ position: 'absolute', bottom: '0', right: '5px' }}>
-                        (終了予定: {estimatedEndTime.getHours().toString().padStart(2, '0')}:{estimatedEndTime.getMinutes().toString().padStart(2, '0')})
-                        </Text>
-                    )}
-                </div>
-            </Grid.Col>
-        </Grid>
-
-        <Group justify="space-between" mt="md" align="center">
-            {task.deadline && deadlineText ? (
-                <Text size="sm" c={deadlineColor} fw={deadlineFontWeight}>
-                    期限: {deadlineText}
-                </Text>
-            ) : (
-                <div /> // Empty div for spacing
+      <Grid align="center" gutter="md">
+        <Grid.Col span="auto">
+          <Stack gap={0}>
+            <Text fw={500} size="lg" truncate>{task.title}</Text>
+            {categoryName && (
+              <Text c="dimmed" size="xs">{categoryName}</Text>
             )}
-            <Group gap="xs">
-                <Button variant="subtle" color="gray" size="compact-xs" onClick={() => onEdit(task)}>
-                    編集
-                </Button>
-                {onResetTimer && task.elapsedTime > 0 && (
-                    <Button variant="subtle" color="orange" size="compact-xs" onClick={() => onResetTimer(task.id)}>
-                        リセット
-                    </Button>
-                )}
-                <Button variant="subtle" color="red" size="compact-xs" onClick={() => onDelete(task.id)}>
-                    削除
-                </Button>
-                {!task.isRunning && (
-                    <Button variant="subtle" color="green" size="compact-xs" onClick={() => onComplete(task.id)}>
-                        完了
-                    </Button>
-                )}
-            </Group>
+            {task.description && (
+              <Text c="dimmed" size="sm" truncate mt={4}>{task.description}</Text>
+            )}
+          </Stack>
+        </Grid.Col>
+        <Grid.Col span="content">
+          <Group gap="md" align="center">
+            {task.targetTime && (
+              <Stack gap={0} align="end">
+                <Text size="xs" c="dimmed">目標</Text>
+                <Text size="lg" c="dimmed">{formatElapsedTime(task.targetTime)}</Text>
+              </Stack>
+            )}
+            <Stack gap={0} align="end">
+              <Text size="xs" c="dimmed">計測</Text>
+              <Text size="lg" c={timeColor} fw={isOverTarget ? 700 : 400}>
+                {formatElapsedTime(displayTime)}
+              </Text>
+            </Stack>
+            {!task.isRunning ? (
+              <Button size="xs" variant="light" color="blue" onClick={() => onStart(task.id)}>
+                開始
+              </Button>
+            ) : (
+              <Button size="xs" variant="light" color="yellow" onClick={() => onStop(task.id)}>
+                停止
+              </Button>
+            )}
+          </Group>
+          {/* 終了予定時刻のための固定領域をここに配置 */}
+          <div style={{ height: '12px', position: 'relative' }}>
+            {estimatedEndTime && (
+              <Text size="xs" c="dimmed" style={{ position: 'absolute', bottom: '0', right: '65px' }}>
+                (終了予定: {estimatedEndTime.getHours().toString().padStart(2, '0')}:{estimatedEndTime.getMinutes().toString().padStart(2, '0')})
+              </Text>
+            )}
+          </div>
+        </Grid.Col>
+      </Grid>
+
+      <Group justify="space-between" mt="md" align="center">
+        {task.deadline && deadlineText ? (
+          <Text size="sm" c={deadlineColor} fw={deadlineFontWeight}>
+            期限: {deadlineText}
+          </Text>
+        ) : (
+          <div /> // Empty div for spacing
+        )}
+        <Group gap="xs">
+          <Button variant="subtle" color="gray" size="compact-xs" onClick={() => onEdit(task)}>
+            編集
+          </Button>
+          {onResetTimer && task.elapsedTime > 0 && (
+            <Button variant="subtle" color="orange" size="compact-xs" onClick={() => onResetTimer(task.id)}>
+              リセット
+            </Button>
+          )}
+          <Button variant="subtle" color="red" size="compact-xs" onClick={() => onDelete(task.id)}>
+            削除
+          </Button>
+          {!task.isRunning && (
+            <Button variant="subtle" color="green" size="compact-xs" onClick={() => onComplete(task.id)}>
+              完了
+            </Button>
+          )}
         </Group>
+      </Group>
     </Card>
   );
 });
