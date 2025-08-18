@@ -1,64 +1,140 @@
-import BlogList from '@/components/BlogList';
-import Link from 'next/link';
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Container, Title, Card, Text, Badge, Group, Stack, Loader, Alert } from '@mantine/core';
+import { IconCalendar, IconAlertCircle } from '@tabler/icons-react';
+import BlogBackground from '@/components/BlogBackground';
+
+interface BlogPost {
+  id: string;
+  title: string;
+  date: string;
+  tags: string[];
+  category: string;
+}
 
 export default function BlogPage() {
+  const router = useRouter();
+  const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchBlogPosts();
+  }, []);
+
+  const fetchBlogPosts = async () => {
+    try {
+      const response = await fetch('/api/notion/blog');
+      if (!response.ok) {
+        throw new Error('Failed to fetch blog posts');
+      }
+      const data = await response.json();
+      setPosts(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ja-JP', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  if (loading) {
+    return (
+      <BlogBackground>
+        <Container size="lg" py="xl">
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+            <Loader size="lg" />
+          </div>
+        </Container>
+      </BlogBackground>
+    );
+  }
+
+  if (error) {
+    return (
+      <BlogBackground>
+        <Container size="lg" py="xl">
+          <Alert icon={<IconAlertCircle size="1rem" />} title="エラー" color="red">
+            {error}
+          </Alert>
+        </Container>
+      </BlogBackground>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* ヘッダー */}
-      <header className="bg-white shadow-sm border-b border-slate-200">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <nav className="flex items-center justify-between">
-            <Link href="/" className="text-slate-600 hover:text-slate-900 transition-colors">
-              ← ホームへ戻る
-            </Link>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-              Blog
-            </h1>
-            <div className="w-24"></div>
-          </nav>
-        </div>
-      </header>
+    <BlogBackground>
+      <Container size="lg" py="xl">
+        <Title order={1} mb="xl" c="white">Blog</Title>
+      
+        <Stack gap="md">
+          {posts.length === 0 ? (
+            <Text c="white">ブログ記事がありません。</Text>
+          ) : (
+            posts.map((post) => (
+              <Card 
+                key={post.id} 
+                shadow="xl" 
+                padding="lg" 
+                radius="md" 
+                withBorder
+                style={{ 
+                  cursor: 'pointer',
+                  background: 'rgba(255, 255, 255, 0.95)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  transition: 'all 0.3s ease',
+                }}
+                onClick={() => router.push(`/blog/${post.id}`)}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = '0 20px 40px rgba(0, 0, 0, 0.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.1)';
+                }}
+              >
+              <Group justify="flex-start" mb="xs">
+                <Title order={3}>{post.title}</Title>
+              </Group>
 
-      {/* メインコンテンツ */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* ヒーローセクション */}
-        <div className="text-center mb-16">
-          <h2 className="text-5xl font-bold text-slate-900 mb-4">
-            My Thoughts & Ideas
-          </h2>
-          <p className="text-xl text-slate-600 max-w-2xl mx-auto">
-            技術、デザイン、日々の発見について書いています
-          </p>
-        </div>
+              <Group justify="space-between" align="center">
+                <Group gap="xs">
+                  {post.category && (
+                    <Badge variant="filled" size="sm" color="blue">
+                      {post.category}
+                    </Badge>
+                  )}
+                  {post.tags.map((tag) => (
+                    <Badge key={tag} variant="light" size="sm">
+                      {tag}
+                    </Badge>
+                  ))}
+                </Group>
 
-        {/* カテゴリータグ */}
-        <div className="flex flex-wrap gap-3 justify-center mb-12">
-          <button className="px-4 py-2 bg-purple-100 text-purple-700 rounded-full hover:bg-purple-200 transition-colors">
-            すべて
-          </button>
-          <button className="px-4 py-2 bg-slate-100 text-slate-700 rounded-full hover:bg-slate-200 transition-colors">
-            技術
-          </button>
-          <button className="px-4 py-2 bg-slate-100 text-slate-700 rounded-full hover:bg-slate-200 transition-colors">
-            デザイン
-          </button>
-          <button className="px-4 py-2 bg-slate-100 text-slate-700 rounded-full hover:bg-slate-200 transition-colors">
-            ライフスタイル
-          </button>
-        </div>
-
-        {/* ブログ記事一覧 */}
-        <BlogList />
-      </main>
-
-      {/* フッター */}
-      <footer className="mt-24 border-t border-slate-200 bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <p className="text-center text-slate-600">
-            © 2025 chronoll. Modern design with ❤️
-          </p>
-        </div>
-      </footer>
-    </div>
+                <Group gap="xs">
+                  <IconCalendar size={16} />
+                  <Text size="sm" c="dimmed">
+                    {formatDate(post.date)}
+                  </Text>
+                </Group>
+              </Group>
+            </Card>
+          ))
+          )}
+        </Stack>
+      </Container>
+    </BlogBackground>
   );
 }
