@@ -27,6 +27,17 @@ export async function GET(
     const date = dateProperty?.date?.start || 
                 properties['作成日時']?.created_time || 
                 page.created_time;
+
+    // 公開日時チェック：公開日が未設定または現在日時より先の場合は404エラー
+    const currentDate = new Date().toISOString().split('T')[0];
+    const publishDate = dateProperty?.date?.start;
+    
+    if (!publishDate || publishDate > currentDate) {
+      return NextResponse.json(
+        { error: 'Article not found or not published yet' },
+        { status: 404 }
+      );
+    }
     
     const tagsProperty = properties['タグ'];
     const tags = tagsProperty?.multi_select?.map((tag: { name: string }) => tag.name) || [];
@@ -43,27 +54,37 @@ export async function GET(
     if (relatedArticleIds.length > 0) {
       try {
         const relatedPromises = relatedArticleIds.map(async (relatedId: string) => {
-          const relatedPage = await notion.pages.retrieve({ page_id: relatedId }) as PageObjectResponse;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const relatedProps = relatedPage.properties as Record<string, any>;
-          
-          const relatedTitle = relatedProps['名前']?.title?.[0]?.plain_text || 'Untitled';
-          const relatedDate = relatedProps['公開日']?.date?.start || 
-                            relatedProps['作成日時']?.created_time || 
-                            relatedPage.created_time;
-          const relatedTags = relatedProps['タグ']?.multi_select?.map((tag: { name: string }) => tag.name) || [];
-          const relatedCategory = relatedProps['選択']?.select?.name || '';
-          
-          return {
-            id: relatedPage.id,
-            title: relatedTitle,
-            date: relatedDate,
-            tags: relatedTags,
-            category: relatedCategory,
-          };
+          try {
+            const relatedPage = await notion.pages.retrieve({ page_id: relatedId }) as PageObjectResponse;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const relatedProps = relatedPage.properties as Record<string, any>;
+            
+            // 関連記事の公開日時チェック
+            const relatedPublishDate = relatedProps['公開日']?.date?.start;
+            if (!relatedPublishDate || relatedPublishDate > currentDate) {
+              return null; // 非公開の記事は除外
+            }
+            
+            const relatedTitle = relatedProps['名前']?.title?.[0]?.plain_text || 'Untitled';
+            const relatedDate = relatedPublishDate;
+            const relatedTags = relatedProps['タグ']?.multi_select?.map((tag: { name: string }) => tag.name) || [];
+            const relatedCategory = relatedProps['選択']?.select?.name || '';
+            
+            return {
+              id: relatedPage.id,
+              title: relatedTitle,
+              date: relatedDate,
+              tags: relatedTags,
+              category: relatedCategory,
+            };
+          } catch (error) {
+            console.error(`Error fetching related article ${relatedId}:`, error);
+            return null; // エラーの記事は除外
+          }
         });
         
-        relatedArticles = await Promise.all(relatedPromises);
+        const results = await Promise.all(relatedPromises);
+        relatedArticles = results.filter(article => article !== null);
       } catch (error) {
         console.error('Error fetching related articles:', error);
       }

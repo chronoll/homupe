@@ -17,11 +17,29 @@ export async function GET() {
       );
     }
 
+    const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD形式
+
     const response = await notion.databases.query({
       database_id: databaseId,
+      filter: {
+        and: [
+          {
+            property: '公開日',
+            date: {
+              is_not_empty: true,
+            },
+          },
+          {
+            property: '公開日',
+            date: {
+              on_or_before: currentDate,
+            },
+          },
+        ],
+      },
       sorts: [
         {
-          property: '作成日時',
+          property: '公開日',
           direction: 'descending',
         },
       ],
