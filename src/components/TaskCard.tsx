@@ -140,11 +140,11 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({
                         <Text size="lg" c={timeColor} fw={isOverTarget ? 700 : 400}>
                             {formatElapsedTime(displayTime)}
                         </Text>
-                        {estimatedEndTime && (
+                        {/* {estimatedEndTime && (
                             <Text size="xs" c="dimmed">
                             (終了予定: {estimatedEndTime.getHours().toString().padStart(2, '0')}:{estimatedEndTime.getMinutes().toString().padStart(2, '0')})
                             </Text>
-                        )}
+                        )} */}
                     </Stack>
                     {!task.isRunning ? (
                         <Button size="xs" variant="light" color="blue" onClick={() => onStart(task.id)}>
