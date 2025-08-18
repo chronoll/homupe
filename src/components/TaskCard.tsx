@@ -37,14 +37,27 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({
 }) => {
   const { text: deadlineText, className: deadlineClass } = formatDeadline(task.deadline);
 
-  // Timer logic from Timer.tsx
   const [displayTime, setDisplayTime] = useState(task.elapsedTime);
   const [isOverTarget, setIsOverTarget] = useState(false);
+  const [estimatedEndTime, setEstimatedEndTime] = useState<Date | null>(null);
   const notificationSentRef = useRef(false);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: NodeJS.Timeout | undefined = undefined;
+
     if (task.isRunning) {
+      if (task.startTime && task.targetTime) {
+        const remainingTimeMs = (task.targetTime - task.elapsedTime) * 60 * 1000;
+        if (remainingTimeMs > 0) {
+          const endTime = new Date(task.startTime + remainingTimeMs);
+          setEstimatedEndTime(endTime);
+        } else {
+          setEstimatedEndTime(null);
+        }
+      } else {
+        setEstimatedEndTime(null);
+      }
+
       interval = setInterval(() => {
         const now = Date.now();
         const elapsedSinceStart = (now - (task.startTime || now)) / (1000 * 60); // minutes
@@ -69,6 +82,7 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({
         }
       }, 1000);
     } else {
+      setEstimatedEndTime(null);
       setDisplayTime(task.elapsedTime);
       if (task.targetTime && task.elapsedTime > task.targetTime) {
         setIsOverTarget(true);
@@ -78,7 +92,11 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({
       notificationSentRef.current = false;
     }
 
-    return () => clearInterval(interval);
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
   }, [task.isRunning, task.elapsedTime, task.startTime, task.targetTime, task.title]);
 
   const timeColor = isOverTarget ? 'red' : 'gray';
@@ -122,6 +140,11 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({
                         <Text size="lg" c={timeColor} fw={isOverTarget ? 700 : 400}>
                             {formatElapsedTime(displayTime)}
                         </Text>
+                        {estimatedEndTime && (
+                            <Text size="xs" c="dimmed">
+                            (終了予定: {estimatedEndTime.getHours().toString().padStart(2, '0')}:{estimatedEndTime.getMinutes().toString().padStart(2, '0')})
+                            </Text>
+                        )}
                     </Stack>
                     {!task.isRunning ? (
                         <Button size="xs" variant="light" color="blue" onClick={() => onStart(task.id)}>
