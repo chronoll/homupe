@@ -128,7 +128,7 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({
                 </Stack>
             </Grid.Col>
             <Grid.Col span="content">
-                <Group gap="md" align="flex-end">
+                <Group gap="md" align="flex-start">
                     {task.targetTime && (
                     <Stack gap={0} align="end">
                         <Text size="xs" c="dimmed">目標</Text>
