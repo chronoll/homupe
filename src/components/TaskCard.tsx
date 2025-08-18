@@ -152,9 +152,9 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({
                     )}
                 </Group>
                 {/* 終了予定時刻のための固定領域をここに配置 */}
-                <div style={{ height: '15px', position: 'relative' }}>
+                <div style={{ height: '12px', position: 'relative' }}>
                     {estimatedEndTime && (
-                        <Text size="xs" c="dimmed" style={{ position: 'absolute', bottom: '0', right: '0' }}>
+                        <Text size="xs" c="dimmed" style={{ position: 'absolute', bottom: '0', right: '5px' }}>
                         (終了予定: {estimatedEndTime.getHours().toString().padStart(2, '0')}:{estimatedEndTime.getMinutes().toString().padStart(2, '0')})
                         </Text>
                     )}
