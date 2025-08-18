@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { Container, Title, Group, Badge, Text, Loader, Alert, Button, Box } from '@mantine/core';
 import { IconArrowLeft, IconCalendar, IconAlertCircle } from '@tabler/icons-react';
 import Link from 'next/link';
@@ -43,12 +44,20 @@ export default function BlogDetailPage() {
   const fetchBlogPost = async (id: string) => {
     try {
       const response = await fetch(`/api/notion/blog/${id}`);
+      if (response.status === 404) {
+        notFound();
+        return;
+      }
       if (!response.ok) {
         throw new Error('Failed to fetch blog post');
       }
       const data = await response.json();
       setPost(data);
     } catch (err) {
+      if (err instanceof Error && err.message.includes('404')) {
+        notFound();
+        return;
+      }
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
