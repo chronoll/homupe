@@ -7,7 +7,16 @@ import { IconArrowLeft, IconCalendar, IconAlertCircle } from '@tabler/icons-reac
 import Link from 'next/link';
 import NotionBlockRenderer from '@/components/NotionBlockRenderer';
 import BlogBackground from '@/components/BlogBackground';
+import RelatedArticles from '@/components/RelatedArticles';
 import { BlockObjectResponse } from '@notionhq/client/build/src/api-endpoints';
+
+interface RelatedArticle {
+  id: string;
+  title: string;
+  date: string;
+  tags: string[];
+  category: string;
+}
 
 interface BlogPost {
   id: string;
@@ -16,6 +25,7 @@ interface BlogPost {
   tags: string[];
   category: string;
   blocks: BlockObjectResponse[];
+  relatedArticles: RelatedArticle[];
 }
 
 export default function BlogDetailPage() {
@@ -146,6 +156,13 @@ export default function BlogDetailPage() {
         >
           <NotionBlockRenderer blocks={post.blocks} />
         </Box>
+
+        {/* 関連記事セクション */}
+        {post.relatedArticles && post.relatedArticles.length > 0 && (
+          <Box mt="xl">
+            <RelatedArticles articles={post.relatedArticles} />
+          </Box>
+        )}
       </Container>
     </BlogBackground>
   );

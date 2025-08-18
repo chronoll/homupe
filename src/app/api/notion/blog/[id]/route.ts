@@ -34,6 +34,41 @@ export async function GET(
     const categoryProperty = properties['選択'];
     const category = categoryProperty?.select?.name || '';
 
+    // 関連記事を取得
+    const relatedArticlesProperty = properties['関連記事'];
+    const relatedArticleIds = relatedArticlesProperty?.relation?.map((rel: { id: string }) => rel.id) || [];
+    
+    // 関連記事の詳細情報を取得
+    let relatedArticles = [];
+    if (relatedArticleIds.length > 0) {
+      try {
+        const relatedPromises = relatedArticleIds.map(async (relatedId: string) => {
+          const relatedPage = await notion.pages.retrieve({ page_id: relatedId }) as PageObjectResponse;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const relatedProps = relatedPage.properties as Record<string, any>;
+          
+          const relatedTitle = relatedProps['名前']?.title?.[0]?.plain_text || 'Untitled';
+          const relatedDate = relatedProps['公開日']?.date?.start || 
+                            relatedProps['作成日時']?.created_time || 
+                            relatedPage.created_time;
+          const relatedTags = relatedProps['タグ']?.multi_select?.map((tag: { name: string }) => tag.name) || [];
+          const relatedCategory = relatedProps['選択']?.select?.name || '';
+          
+          return {
+            id: relatedPage.id,
+            title: relatedTitle,
+            date: relatedDate,
+            tags: relatedTags,
+            category: relatedCategory,
+          };
+        });
+        
+        relatedArticles = await Promise.all(relatedPromises);
+      } catch (error) {
+        console.error('Error fetching related articles:', error);
+      }
+    }
+
     // ページのブロック（コンテンツ）を取得
     const blocks = await getPageBlocks(pageId);
 
@@ -44,6 +79,7 @@ export async function GET(
       tags,
       category,
       blocks,
+      relatedArticles,
     });
   } catch (error) {
     console.error('Error fetching Notion page:', error);
