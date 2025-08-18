@@ -168,11 +168,6 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({
                 <div /> // Empty div for spacing
             )}
             <Group gap="xs">
-                {!task.isRunning && (
-                    <Button variant="light" color="green" size="xs" onClick={() => onComplete(task.id)}>
-                        完了
-                    </Button>
-                )}
                 <Button variant="subtle" color="gray" size="compact-xs" onClick={() => onEdit(task)}>
                     編集
                 </Button>
@@ -184,6 +179,11 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({
                 <Button variant="subtle" color="red" size="compact-xs" onClick={() => onDelete(task.id)}>
                     削除
                 </Button>
+                {!task.isRunning && (
+                    <Button variant="subtle" color="green" size="compact-xs" onClick={() => onComplete(task.id)}>
+                        完了
+                    </Button>
+                )}
             </Group>
         </Group>
     </Card>
