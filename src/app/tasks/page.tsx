@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -169,6 +170,26 @@ const TasksPage = () => {
     }
   };
 
+  const handleResetTimer = async (taskId: string) => {
+    if (!confirm('本当にこのタスクの計測時間をリセットしますか？')) return;
+    try {
+      const res = await fetch(`/api/tasks?action=resetTimer&id=${taskId}`, {
+        method: 'POST',
+      });
+      if (!res.ok) throw new Error(`Failed to reset timer: ${res.statusText}`);
+      
+      setTasks(prevTasks =>
+        prevTasks.map(task =>
+          task.id === taskId
+            ? { ...task, isRunning: false, elapsedTime: 0, startTime: 0 }
+            : task
+        )
+      );
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'An unknown error occurred');
+    }
+  };
+
   const handleReorderTasks = async (taskIds: string[], categoryId?: string) => {
     try {
       // Optimistic update
@@ -303,6 +324,7 @@ const TasksPage = () => {
                     totalTargetTime={totalTargetTime}
                     totalElapsedTime={totalElapsedTime}
                     onEditTask={openEditTaskModal}
+                    onResetTimer={handleResetTimer}
                   />
                 </div>
               ))}
@@ -319,6 +341,7 @@ const TasksPage = () => {
                     totalTargetTime={uncategorizedTotalTargetTime}
                     totalElapsedTime={uncategorizedTotalElapsedTime}
                     onEditTask={openEditTaskModal}
+                    onResetTimer={handleResetTimer}
                   />
                 </div>
               )}

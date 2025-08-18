@@ -1,4 +1,3 @@
-
 import { setJson, getJson } from '../redis';
 import { Timer } from '../types';
 import { getTask, updateTask } from './taskRepository';
@@ -53,4 +52,24 @@ export const stopTimer = async (taskId: string): Promise<Timer | null> => {
   await setJson(`${TIMER_KEY_PREFIX}${taskId}`, updatedTimer);
 
   return updatedTimer;
+};
+
+export const resetTimer = async (taskId: string): Promise<Timer | null> => {
+    const task = await getTask(taskId);
+    if (!task) {
+        return null;
+    }
+
+    const updatedTimer: Timer = {
+        taskId,
+        startTime: 0,
+        elapsedTime: 0,
+        isRunning: false,
+        targetTime: task.targetTime,
+    };
+
+    await updateTask(taskId, { isRunning: false, elapsedTime: 0, startTime: 0 });
+    await setJson(`${TIMER_KEY_PREFIX}${taskId}`, updatedTimer);
+
+    return updatedTimer;
 };

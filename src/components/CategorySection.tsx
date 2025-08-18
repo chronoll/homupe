@@ -16,6 +16,7 @@ interface CategorySectionProps {
   totalTargetTime: number;
   totalElapsedTime: number;
   onEditTask: (task: Task) => void;
+  onResetTimer: (taskId: string) => void;
 }
 
 const CategorySection: React.FC<CategorySectionProps> = React.memo(({
@@ -30,6 +31,7 @@ const CategorySection: React.FC<CategorySectionProps> = React.memo(({
   totalTargetTime,
   totalElapsedTime,
   onEditTask,
+  onResetTimer,
 }) => {
   const [localTasks, setLocalTasks] = useState<Task[]>(tasks);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -98,6 +100,7 @@ const CategorySection: React.FC<CategorySectionProps> = React.memo(({
               onDragLeave={handleDragLeave}
               isDragging={draggingId === task.id}
               onEdit={onEditTask}
+              onResetTimer={onResetTimer}
             />
           ))}
         </div>

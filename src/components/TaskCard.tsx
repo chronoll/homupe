@@ -17,6 +17,7 @@ interface TaskCardProps {
   isDragging?: boolean;
   categoryName?: string;
   onEdit: (task: Task) => void;
+  onResetTimer?: (taskId: string) => void;
 }
 
 const TaskCard: React.FC<TaskCardProps> = React.memo(({
@@ -32,6 +33,7 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({
   isDragging = false,
   categoryName,
   onEdit,
+  onResetTimer,
 }) => {
   const { text: deadlineText, className: deadlineClass } = formatDeadline(task.deadline);
 
@@ -146,6 +148,11 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({
                 <Button variant="light" color="blue" size="xs" onClick={() => onEdit(task)}>
                     編集
                 </Button>
+                {onResetTimer && task.elapsedTime > 0 && (
+                    <Button variant="light" color="orange" size="xs" onClick={() => onResetTimer(task.id)}>
+                        リセット
+                    </Button>
+                )}
                 <Button variant="light" color="green" size="xs" onClick={() => onComplete(task.id)}>
                     完了
                 </Button>

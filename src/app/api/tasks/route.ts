@@ -1,7 +1,6 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { createTask, getAllTasks, getTask, updateTask, deleteTask, reorderTasks } from '@/lib/repositories/taskRepository';
-import { startTimer, stopTimer } from '@/lib/repositories/timerRepository';
+import { startTimer, stopTimer, resetTimer } from '@/lib/repositories/timerRepository';
 import { validateTask } from '@/lib/utils';
 
 export async function GET(request: NextRequest) {
@@ -55,6 +54,15 @@ export async function POST(request: NextRequest) {
       const timer = await stopTimer(id);
       if (!timer) {
         return NextResponse.json({ error: 'Task not found or timer not running' }, { status: 404 });
+      }
+      return NextResponse.json(timer);
+    } else if (action === 'resetTimer') {
+      if (!id) {
+        return NextResponse.json({ error: 'Task ID is required to reset timer' }, { status: 400 });
+      }
+      const timer = await resetTimer(id);
+      if (!timer) {
+        return NextResponse.json({ error: 'Task not found' }, { status: 404 });
       }
       return NextResponse.json(timer);
     } else {
