@@ -1,130 +1,372 @@
-'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+'use client';
 
-export default function TasksPage() {
-  const [password, setPassword] = useState('')
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-  const router = useRouter()
+import React, { useState, useEffect, useCallback } from 'react';
+import { Task, Category } from '@/lib/types';
+import CategorySection from '@/components/CategorySection';
+import TaskModal from '@/components/TaskModal';
+import CategoryModal from '@/components/CategoryModal';
+import FloatingCreateButton from '@/components/FloatingCreateButton';
+import { requestNotificationPermission } from '@/lib/notifications';
+
+import AppHeader from '@/components/AppHeader';
+
+import { AppShell, Burger, Group, Title, Button, Container, Text, rem, Anchor } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
+
+const TasksPage = () => {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Partial<Task> | undefined>(undefined);
+  const [selectedCategoryIdForNewTask, setSelectedCategoryIdForNewTask] = useState<string | undefined>(undefined);
+  const [opened, { toggle }] = useDisclosure();
+
+  const uncategorizedTasks = tasks.filter(task => !task.categoryId);
+  const uncategorizedTotalTargetTime = uncategorizedTasks.reduce((sum, task) => sum + (task.targetTime || 0), 0);
+  const uncategorizedTotalElapsedTime = uncategorizedTasks.reduce((sum, task) => sum + task.elapsedTime, 0);
+
+  const categorizedTasks = categories.map(category => {
+    const catTasks = tasks.filter(task => task.categoryId === category.id);
+    const totalTargetTime = catTasks.reduce((sum, task) => sum + (task.targetTime || 0), 0);
+    const totalElapsedTime = catTasks.reduce((sum, task) => sum + task.elapsedTime, 0);
+    return {
+      category,
+      tasks: catTasks,
+      totalTargetTime,
+      totalElapsedTime,
+    };
+  });
+
+  const fetchTasksAndCategories = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [tasksRes, categoriesRes] = await Promise.all([
+        fetch('/api/tasks'),
+        fetch('/api/categories'),
+      ]);
+
+      if (!tasksRes.ok) throw new Error(`Failed to fetch tasks: ${tasksRes.statusText}`);
+      if (!categoriesRes.ok) throw new Error(`Failed to fetch categories: ${categoriesRes.statusText}`);
+
+      const fetchedTasks: Task[] = await tasksRes.json();
+      const fetchedCategories: Category[] = await categoriesRes.json();
+
+      // Sort tasks by deadline, then by order
+      fetchedTasks.sort((a, b) => {
+        const deadlineA = a.deadline?.date ? new Date(a.deadline.date + (a.deadline.time || '')).getTime() : Infinity;
+        const deadlineB = b.deadline?.date ? new Date(b.deadline.date + (b.deadline.time || '')).getTime() : Infinity;
+
+        if (deadlineA !== deadlineB) {
+          return deadlineA - deadlineB;
+        }
+        return (a.order || 0) - (b.order || 0);
+      });
+
+      setTasks(fetchedTasks.filter(task => !task.completedAt)); // Only show active tasks
+      setCategories(fetchedCategories);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'An unknown error occurred');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const auth = sessionStorage.getItem('tasksAuth')
-    if (auth === 'true') {
-      setIsAuthenticated(true)
-    }
-    setIsLoading(false)
-  }, [])
+    fetchTasksAndCategories();
+    requestNotificationPermission();
+  }, [fetchTasksAndCategories]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
+  const handleSaveTask = async (taskData: Partial<Task>) => {
     try {
-      const response = await fetch('/api/tasks/auth', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ password }),
-      })
-      
-      const data = await response.json()
-      
-      if (data.success) {
-        setIsAuthenticated(true)
-        sessionStorage.setItem('tasksAuth', 'true')
-      } else {
-        alert('パスワードが違います')
-      }
-    } catch (error) {
-      alert('エラーが発生しました')
+      const method = taskData.id ? 'PUT' : 'POST';
+      const url = taskData.id ? `/api/tasks?id=${taskData.id}` : '/api/tasks';
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(taskData),
+      });
+      if (!res.ok) throw new Error(`Failed to save task: ${res.statusText}`);
+
+      const savedTask: Task = await res.json();
+
+      setTasks(prevTasks => {
+        if (taskData.id) {
+          // Update existing task
+          return prevTasks.map(task => (task.id === savedTask.id ? savedTask : task));
+        } else {
+          // Add new task
+          return [...prevTasks, savedTask];
+        }
+      });
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'An unknown error occurred');
     }
-  }
+  };
 
-  if (isLoading) {
-    return <div className="min-h-screen flex items-center justify-center bg-gray-900 text-green-400">Loading...</div>
-  }
+  const handleCompleteTask = async (taskId: string) => {
+    try {
+      const res = await fetch(`/api/tasks?action=complete&id=${taskId}`, {
+        method: 'POST',
+      });
+      if (!res.ok) throw new Error(`Failed to complete task: ${res.statusText}`);
+      
+      // Optimistically update UI
+      setTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'An unknown error occurred');
+    }
+  };
 
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
-        <div className="bg-gray-800 p-8 rounded-lg shadow-lg border-2 border-green-400">
-          <h1 className="text-2xl font-bold text-green-400 mb-6 text-center">パスワードを入力してください</h1>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 bg-gray-700 text-green-400 border border-green-400 rounded focus:outline-none focus:border-green-300"
-              placeholder="パスワード"
-              autoFocus
-            />
-            <button
-              type="submit"
-              className="w-full px-4 py-2 bg-green-400 text-gray-900 font-bold rounded hover:bg-green-300 transition-colors"
-            >
-              ログイン
-            </button>
-          </form>
-        </div>
-      </div>
-    )
-  }
+  const handleDeleteTask = async (taskId: string) => {
+    if (!confirm('本当にこのタスクを削除しますか？')) return;
+    try {
+      const res = await fetch(`/api/tasks?id=${taskId}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error(`Failed to delete task: ${res.statusText}`);
+      
+      // Optimistically update UI
+      setTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'An unknown error occurred');
+    }
+  };
+
+  const handleStartTimer = async (taskId: string) => {
+    try {
+      const res = await fetch(`/api/tasks?action=startTimer&id=${taskId}`, {
+        method: 'POST',
+      });
+      if (!res.ok) throw new Error(`Failed to start timer: ${res.statusText}`);
+      const updatedTask: Task = await res.json();
+
+      setTasks(prevTasks =>
+        prevTasks.map(task => (task.id === taskId ? { ...task, isRunning: true, startTime: updatedTask.startTime } : task))
+      );
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'An unknown error occurred');
+    }
+  };
+
+  const handleStopTimer = async (taskId: string) => {
+    try {
+      const res = await fetch(`/api/tasks?action=stopTimer&id=${taskId}`, {
+        method: 'POST',
+      });
+      if (!res.ok) throw new Error(`Failed to stop timer: ${res.statusText}`);
+      const updatedTask: Task = await res.json();
+
+      setTasks(prevTasks =>
+        prevTasks.map(task =>
+          task.id === taskId ? { ...task, isRunning: false, elapsedTime: updatedTask.elapsedTime } : task
+        )
+      );
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'An unknown error occurred');
+    }
+  };
+
+  const handleResetTimer = async (taskId: string) => {
+    if (!confirm('本当にこのタスクの計測時間をリセットしますか？')) return;
+    try {
+      const res = await fetch(`/api/tasks?action=resetTimer&id=${taskId}`, {
+        method: 'POST',
+      });
+      if (!res.ok) throw new Error(`Failed to reset timer: ${res.statusText}`);
+      
+      setTasks(prevTasks =>
+        prevTasks.map(task =>
+          task.id === taskId
+            ? { ...task, isRunning: false, elapsedTime: 0, startTime: 0 }
+            : task
+        )
+      );
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'An unknown error occurred');
+    }
+  };
+
+  const handleReorderTasks = async (taskIds: string[], categoryId?: string) => {
+    try {
+      // Optimistic update
+      setTasks(prevTasks => {
+        const reordered = taskIds.map(id => prevTasks.find(t => t.id === id)!);
+        const otherTasks = prevTasks.filter(t => !taskIds.includes(t.id));
+        return [...reordered, ...otherTasks];
+      });
+
+      const res = await fetch('/api/tasks?action=reorder', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskIds, categoryId }),
+      });
+      if (!res.ok) throw new Error(`Failed to reorder tasks: ${res.statusText}`);
+      // No need to fetchTasksAndCategories();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'An unknown error occurred');
+      // Revert on error - re-fetch to ensure consistency
+      fetchTasksAndCategories();
+    }
+  };
+
+  const handleSaveCategory = async (categoryData: Partial<Category>) => {
+    try {
+      const method = categoryData.id ? 'PUT' : 'POST';
+      const url = categoryData.id ? `/api/categories?id=${categoryData.id}` : '/api/categories';
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(categoryData),
+      });
+      if (!res.ok) throw new Error(`Failed to save category: ${res.statusText}`);
+      
+      const savedCategory: Category = await res.json();
+
+      setCategories(prevCategories => {
+        if (categoryData.id) {
+          // Update existing category
+          return prevCategories.map(category => (category.id === savedCategory.id ? savedCategory : category));
+        } else {
+          // Add new category
+          return [...prevCategories, savedCategory];
+        }
+      });
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'An unknown error occurred');
+    }
+  };
+
+  const handleDeleteCategory = async (categoryId: string) => {
+    if (!confirm('本当にこのカテゴリを削除しますか？関連するタスクは未分類になります。')) return;
+    try {
+      const res = await fetch(`/api/categories?id=${categoryId}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error(`Failed to delete category: ${res.statusText}`);
+      
+      // Update categories state
+      setCategories(prevCategories => prevCategories.filter(cat => cat.id !== categoryId));
+      // Update tasks state: set categoryId to undefined for tasks in this category
+      setTasks(prevTasks =>
+        prevTasks.map(task =>
+          task.categoryId === categoryId ? { ...task, categoryId: undefined } : task
+        )
+      );
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'An unknown error occurred');
+    }
+  };
+
+  const openCreateTaskModal = (categoryId?: string) => {
+    setEditingTask(undefined);
+    setSelectedCategoryIdForNewTask(categoryId);
+    setIsTaskModalOpen(true);
+  };
+
+  const openEditTaskModal = (task: Task) => {
+    setEditingTask(task);
+    setIsTaskModalOpen(true);
+  };
+
+  const openCreateCategoryModal = () => {
+    setIsCategoryModalOpen(true);
+  };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-green-400 p-8">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-4xl font-bold mb-8 text-center">タスク管理</h1>
-        
-        <div className="bg-gray-800 p-6 rounded-lg border-2 border-green-400 mb-8">
-          <h2 className="text-2xl font-bold mb-4">今日のタスク</h2>
-          <ul className="space-y-2">
-            <li className="flex items-center">
-              <input type="checkbox" className="mr-3" />
-              <span>コードレビューを完了する</span>
-            </li>
-            <li className="flex items-center">
-              <input type="checkbox" className="mr-3" />
-              <span>ドキュメントを更新する</span>
-            </li>
-            <li className="flex items-center">
-              <input type="checkbox" className="mr-3" />
-              <span>テストコードを書く</span>
-            </li>
-          </ul>
-        </div>
+    <AppShell
+      header={{ height: rem(60) }}
+      navbar={{ width: 300, breakpoint: 'sm', collapsed: { mobile: !opened } }}
+      padding="md"
+    >
+      <AppShell.Header>
+        <AppHeader onAddCategory={openCreateCategoryModal} />
+      </AppShell.Header>
 
-        <div className="bg-gray-800 p-6 rounded-lg border-2 border-green-400 mb-8">
-          <h2 className="text-2xl font-bold mb-4">進行中のプロジェクト</h2>
-          <div className="space-y-4">
-            <div className="border-l-4 border-green-400 pl-4">
-              <h3 className="font-bold">ウェブサイトリニューアル</h3>
-              <p className="text-sm text-gray-400">進捗: 75%</p>
-            </div>
-            <div className="border-l-4 border-yellow-400 pl-4">
-              <h3 className="font-bold">新機能開発</h3>
-              <p className="text-sm text-gray-400">進捗: 30%</p>
-            </div>
-            <div className="border-l-4 border-red-400 pl-4">
-              <h3 className="font-bold">バグ修正</h3>
-              <p className="text-sm text-gray-400">進捗: 10%</p>
-            </div>
-          </div>
-        </div>
+      <AppShell.Navbar p="md">
+        <Title order={2} size="h4" mb="md">カテゴリ</Title>
+        {categories.map(cat => (
+          <Group key={cat.id} justify="space-between" mb="xs">
+            <Anchor href={`#category-${cat.id}`} fz="sm" style={{ flexGrow: 1 }}>
+              {cat.name}
+            </Anchor>
+            <Button size="xs" variant="light" onClick={() => handleDeleteCategory(cat.id)}>削除</Button>
+          </Group>
+        ))}
+        {uncategorizedTasks.length > 0 && (
+          <Anchor href="#category-uncategorized" fz="sm" mt="xs">
+            未分類
+          </Anchor>
+        )}
+      </AppShell.Navbar>
 
-        <div className="text-center">
-          <button
-            onClick={() => {
-              sessionStorage.removeItem('tasksAuth')
-              router.push('/')
-            }}
-            className="px-6 py-2 bg-red-600 text-white font-bold rounded hover:bg-red-700 transition-colors"
-          >
-            ログアウト
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
+      <AppShell.Main>
+        <Container size="lg">
+          {loading && <Text>読み込み中...</Text>}
+          {error && <Text color="red">エラー: {error}</Text>}
+
+          {!loading && !error && (
+            <>
+              {categorizedTasks.map(({ category, tasks: catTasks, totalTargetTime, totalElapsedTime }) => (
+                <div id={`category-${category.id}`} key={category.id}>
+                  <CategorySection
+                    category={category}
+                    tasks={catTasks}
+                    onCompleteTask={handleCompleteTask}
+                    onDeleteTask={handleDeleteTask}
+                    onStartTimer={handleStartTimer}
+                    onStopTimer={handleStopTimer}
+                    onCreateTask={openCreateTaskModal}
+                    onReorderTasks={handleReorderTasks}
+                    totalTargetTime={totalTargetTime}
+                    totalElapsedTime={totalElapsedTime}
+                    onEditTask={openEditTaskModal}
+                    onResetTimer={handleResetTimer}
+                  />
+                </div>
+              ))}
+              {uncategorizedTasks.length > 0 && (
+                <div id="category-uncategorized">
+                  <CategorySection
+                    tasks={uncategorizedTasks}
+                    onCompleteTask={handleCompleteTask}
+                    onDeleteTask={handleDeleteTask}
+                    onStartTimer={handleStartTimer}
+                    onStopTimer={handleStopTimer}
+                    onCreateTask={openCreateTaskModal}
+                    onReorderTasks={handleReorderTasks}
+                    totalTargetTime={uncategorizedTotalTargetTime}
+                    totalElapsedTime={uncategorizedTotalElapsedTime}
+                    onEditTask={openEditTaskModal}
+                    onResetTimer={handleResetTimer}
+                  />
+                </div>
+              )}
+            </>
+          )}
+        </Container>
+      </AppShell.Main>
+
+      <FloatingCreateButton onClick={() => openCreateTaskModal()} />
+
+      <TaskModal
+        isOpen={isTaskModalOpen}
+        onClose={() => setIsTaskModalOpen(false)}
+        onSave={handleSaveTask}
+        initialTask={editingTask || (selectedCategoryIdForNewTask ? { categoryId: selectedCategoryIdForNewTask } : undefined)}
+        categories={categories}
+      />
+
+      <CategoryModal
+        isOpen={isCategoryModalOpen}
+        onClose={() => setIsCategoryModalOpen(false)}
+        onSave={handleSaveCategory}
+      />
+    </AppShell>
+  );
+};
+
+export default TasksPage;
