@@ -56,68 +56,86 @@ export default function BlogBackground({ children }: BlogBackgroundProps) {
   }, []);
 
   return (
-    <Box
-      style={{
-        minHeight: '100vh',
-        position: 'relative',
-        background: `
-          linear-gradient(135deg, 
-            rgba(17, 24, 39, 0.95) 0%, 
-            rgba(31, 41, 55, 0.95) 25%, 
-            rgba(55, 65, 81, 0.9) 50%, 
-            rgba(75, 85, 99, 0.85) 75%, 
-            rgba(99, 102, 241, 0.3) 100%
-          ),
-          radial-gradient(circle at 20% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
-          radial-gradient(circle at 80% 20%, rgba(34, 211, 238, 0.1) 0%, transparent 50%),
-          radial-gradient(circle at 40% 40%, rgba(251, 146, 60, 0.08) 0%, transparent 50%),
-          linear-gradient(180deg, #0f172a 0%, #1e293b 100%)
-        `,
-        backgroundAttachment: 'fixed',
-        overflow: 'hidden',
-      }}
-    >
-      {/* アニメーション付きグラデーションオーバーレイ */}
+    <>
+      {/* 固定背景レイヤー */}
       <Box
         style={{
-          position: 'absolute',
+          position: 'fixed',
           top: 0,
           left: 0,
           right: 0,
           bottom: 0,
+          width: '100vw',
+          height: '100vh',
           background: `
-            repeating-linear-gradient(
-              90deg,
-              transparent,
-              transparent 2px,
-              rgba(255, 255, 255, 0.03) 2px,
-              rgba(255, 255, 255, 0.03) 4px
+            linear-gradient(135deg, 
+              rgba(17, 24, 39, 0.95) 0%, 
+              rgba(31, 41, 55, 0.95) 25%, 
+              rgba(55, 65, 81, 0.9) 50%, 
+              rgba(75, 85, 99, 0.85) 75%, 
+              rgba(99, 102, 241, 0.3) 100%
             ),
-            repeating-linear-gradient(
-              0deg,
-              transparent,
-              transparent 2px,
-              rgba(255, 255, 255, 0.03) 2px,
-              rgba(255, 255, 255, 0.03) 4px
-            )
+            radial-gradient(circle at 20% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+            radial-gradient(circle at 80% 20%, rgba(34, 211, 238, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 40% 40%, rgba(251, 146, 60, 0.08) 0%, transparent 50%),
+            linear-gradient(180deg, #0f172a 0%, #1e293b 100%)
           `,
-          pointerEvents: 'none',
+          zIndex: -2,
         }}
       />
       
-      {/* 浮遊する光の粒子エフェクト - クライアントサイドでのみレンダリング */}
-      {isMounted && (
+      {/* メインコンテナ */}
+      <Box
+        style={{
+          position: 'relative',
+          minHeight: '100vh',
+          width: '100%',
+          overflow: 'hidden',
+        }}
+      >
+        {/* アニメーション付きグラデーションオーバーレイ */}
         <Box
           style={{
-            position: 'absolute',
+            position: 'fixed',
             top: 0,
             left: 0,
             right: 0,
             bottom: 0,
-            overflow: 'hidden',
+            background: `
+              repeating-linear-gradient(
+                90deg,
+                transparent,
+                transparent 2px,
+                rgba(255, 255, 255, 0.03) 2px,
+                rgba(255, 255, 255, 0.03) 4px
+              ),
+              repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(255, 255, 255, 0.03) 2px,
+                rgba(255, 255, 255, 0.03) 4px
+              )
+            `,
             pointerEvents: 'none',
+            zIndex: -1,
           }}
-        >
+        />
+        
+        {/* 浮遊する光の粒子エフェクト - クライアントサイドでのみレンダリング */}
+        {isMounted && (
+          <Box
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              overflow: 'hidden',
+              pointerEvents: 'none',
+              zIndex: -1,
+            }}
+          >
           {particles.map((particle, i) => {
             const getParticleStyle = () => {
               const baseStyle = {
@@ -185,13 +203,21 @@ export default function BlogBackground({ children }: BlogBackgroundProps) {
                 style={getParticleStyle()}
               />
             );
-          })}
-        </Box>
-      )}
+            })}
+          </Box>
+        )}
 
-      {/* コンテンツエリア */}
-      <Box style={{ position: 'relative', zIndex: 1 }}>
-        {children}
+        {/* コンテンツエリア */}
+        <Box 
+          style={{ 
+            position: 'relative', 
+            zIndex: 1,
+            width: '100%',
+            minHeight: '100vh',
+          }}
+        >
+          {children}
+        </Box>
       </Box>
 
       {isMounted && (
@@ -229,6 +255,6 @@ export default function BlogBackground({ children }: BlogBackgroundProps) {
           }
         `}</style>
       )}
-    </Box>
+    </>
   );
 }
