@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -11,7 +10,7 @@ import { requestNotificationPermission } from '@/lib/notifications';
 
 import AppHeader from '@/components/AppHeader';
 
-import { AppShell, Burger, Group, Title, Button, Container, Text, rem } from '@mantine/core';
+import { AppShell, Burger, Group, Title, Button, Container, Text, rem, Anchor } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 
 const TasksPage = () => {
@@ -270,10 +269,17 @@ const TasksPage = () => {
         <Title order={2} size="h4" mb="md">カテゴリ</Title>
         {categories.map(cat => (
           <Group key={cat.id} justify="space-between" mb="xs">
-            <Text>{cat.name}</Text>
+            <Anchor href={`#category-${cat.id}`} fz="sm" style={{ flexGrow: 1 }}>
+              {cat.name}
+            </Anchor>
             <Button size="xs" variant="light" onClick={() => handleDeleteCategory(cat.id)}>削除</Button>
           </Group>
         ))}
+        {uncategorizedTasks.length > 0 && (
+          <Anchor href="#category-uncategorized" fz="sm" mt="xs">
+            未分類
+          </Anchor>
+        )}
       </AppShell.Navbar>
 
       <AppShell.Main>
@@ -284,34 +290,37 @@ const TasksPage = () => {
           {!loading && !error && (
             <>
               {categorizedTasks.map(({ category, tasks: catTasks, totalTargetTime, totalElapsedTime }) => (
-                <CategorySection
-                  key={category.id}
-                  category={category}
-                  tasks={catTasks}
-                  onCompleteTask={handleCompleteTask}
-                  onDeleteTask={handleDeleteTask}
-                  onStartTimer={handleStartTimer}
-                  onStopTimer={handleStopTimer}
-                  onCreateTask={openCreateTaskModal}
-                  onReorderTasks={handleReorderTasks}
-                  totalTargetTime={totalTargetTime}
-                  totalElapsedTime={totalElapsedTime}
-                  onEditTask={openEditTaskModal}
-                />
+                <div id={`category-${category.id}`} key={category.id}>
+                  <CategorySection
+                    category={category}
+                    tasks={catTasks}
+                    onCompleteTask={handleCompleteTask}
+                    onDeleteTask={handleDeleteTask}
+                    onStartTimer={handleStartTimer}
+                    onStopTimer={handleStopTimer}
+                    onCreateTask={openCreateTaskModal}
+                    onReorderTasks={handleReorderTasks}
+                    totalTargetTime={totalTargetTime}
+                    totalElapsedTime={totalElapsedTime}
+                    onEditTask={openEditTaskModal}
+                  />
+                </div>
               ))}
               {uncategorizedTasks.length > 0 && (
-                <CategorySection
-                  tasks={uncategorizedTasks}
-                  onCompleteTask={handleCompleteTask}
-                  onDeleteTask={handleDeleteTask}
-                  onStartTimer={handleStartTimer}
-                  onStopTimer={handleStopTimer}
-                  onCreateTask={openCreateTaskModal}
-                  onReorderTasks={handleReorderTasks}
-                  totalTargetTime={uncategorizedTotalTargetTime}
-                  totalElapsedTime={uncategorizedTotalElapsedTime}
-                  onEditTask={openEditTaskModal}
-                />
+                <div id="category-uncategorized">
+                  <CategorySection
+                    tasks={uncategorizedTasks}
+                    onCompleteTask={handleCompleteTask}
+                    onDeleteTask={handleDeleteTask}
+                    onStartTimer={handleStartTimer}
+                    onStopTimer={handleStopTimer}
+                    onCreateTask={openCreateTaskModal}
+                    onReorderTasks={handleReorderTasks}
+                    totalTargetTime={uncategorizedTotalTargetTime}
+                    totalElapsedTime={uncategorizedTotalElapsedTime}
+                    onEditTask={openEditTaskModal}
+                  />
+                </div>
               )}
             </>
           )}
