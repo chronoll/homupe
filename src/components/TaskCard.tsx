@@ -147,12 +147,17 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({
                         )}
                     </Stack>
                     {!task.isRunning ? (
-                        <Button size="xs" variant="light" color="blue" onClick={() => onStart(task.id)}>
-                        開始
-                        </Button>
+                        <Group gap="xs">
+                            <Button size="xs" variant="light" color="blue" onClick={() => onStart(task.id)}>
+                                開始
+                            </Button>
+                            <Button variant="light" color="green" size="xs" onClick={() => onComplete(task.id)}>
+                                完了
+                            </Button>
+                        </Group>
                     ) : (
                         <Button size="xs" variant="light" color="yellow" onClick={() => onStop(task.id)}>
-                        停止
+                            停止
                         </Button>
                     )}
                 </Group>
@@ -167,19 +172,16 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({
             ) : (
                 <div /> // Empty div for spacing
             )}
-            <Group gap="xs">
-                <Button variant="light" color="blue" size="xs" onClick={() => onEdit(task)}>
+            <Group gap={5}>
+                <Button variant="subtle" color="gray" size="compact-xs" onClick={() => onEdit(task)}>
                     編集
                 </Button>
                 {onResetTimer && task.elapsedTime > 0 && (
-                    <Button variant="light" color="orange" size="xs" onClick={() => onResetTimer(task.id)}>
+                    <Button variant="subtle" color="orange" size="compact-xs" onClick={() => onResetTimer(task.id)}>
                         リセット
                     </Button>
                 )}
-                <Button variant="light" color="green" size="xs" onClick={() => onComplete(task.id)}>
-                    完了
-                </Button>
-                <Button variant="light" color="red" size="xs" onClick={() => onDelete(task.id)}>
+                <Button variant="subtle" color="red" size="compact-xs" onClick={() => onDelete(task.id)}>
                     削除
                 </Button>
             </Group>
