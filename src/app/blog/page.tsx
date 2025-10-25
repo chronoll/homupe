@@ -42,20 +42,20 @@ export default async function BlogPage() {
     <BlogBackground>
       <Container size="lg" py="xl">
         <Title order={1} mb="xl" c="white">Blog</Title>
-      
+
         <Stack gap="md">
           {!posts || posts.length === 0 ? (
             <Text c="white">ブログ記事がありません。</Text>
           ) : (
             posts.map((post) => (
               <Link href={`/blog/${post.id}`} key={post.id} style={{ textDecoration: 'none' }}>
-                <Card 
-                  shadow="xl" 
-                  padding="lg" 
-                  radius="md" 
+                <Card
+                  shadow="xl"
+                  padding="lg"
+                  radius="md"
                   withBorder
                   className="blog-card" // ホバーエフェクト用のクラス
-                  style={{ 
+                  style={{
                     background: 'rgba(255, 255, 255, 0.95)',
                     backdropFilter: 'blur(10px)',
                     border: '1px solid rgba(255, 255, 255, 0.2)',

@@ -48,10 +48,10 @@ export default async function BlogDetailPage({ params }: BlogDetailPageProps) {
   return (
     <BlogBackground>
       <Container size="md" py="xl">
-        <Button 
-          component={Link} 
-          href="/blog" 
-          variant="light" 
+        <Button
+          component={Link}
+          href="/blog"
+          variant="light"
           leftSection={<IconArrowLeft size={16} />}
           mb="xl"
           c="white"
@@ -64,7 +64,7 @@ export default async function BlogDetailPage({ params }: BlogDetailPageProps) {
           ブログ一覧に戻る
         </Button>
 
-        <Box 
+        <Box
           mb="xl"
           style={{
             background: 'rgba(255, 255, 255, 0.95)',
@@ -75,7 +75,7 @@ export default async function BlogDetailPage({ params }: BlogDetailPageProps) {
           }}
         >
           <Title order={1} mb="md">{post.title}</Title>
-        
+
           <Group justify="space-between" align="center" mb="xl">
             <Group gap="xs">
               {post.category && (
@@ -83,7 +83,7 @@ export default async function BlogDetailPage({ params }: BlogDetailPageProps) {
                   {post.category}
                 </Badge>
               )}
-              {post.tags.map((tag) => (
+              {post.tags.map((tag: string) => (
                 <Badge key={tag} variant="light" size="md">
                   {tag}
                 </Badge>
