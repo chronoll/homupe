@@ -1,21 +1,24 @@
 /**
  * @jest-environment node
  */
-import { GET } from '../route';
-import { Client } from '@notionhq/client';
+const mockQuery = jest.fn();
+jest.mock('@notionhq/client', () => ({
+  __esModule: true,
+  Client: jest.fn(() => ({
+    databases: {
+      query: mockQuery,
+    },
+  })),
+}));
 
-// Mock the Notion client
-jest.mock('@notionhq/client');
-const mockNotion = Client as jest.MockedClass<typeof Client>;
+const { GET } = require('../route');
 
 // Mock environment variables
 const originalEnv = process.env;
 
 describe('/api/notion/blog', () => {
-  let mockQuery: jest.Mock;
-
   beforeEach(() => {
-    jest.clearAllMocks();
+    mockQuery.mockClear();
     
     // Reset environment variables
     process.env = {
@@ -23,14 +26,6 @@ describe('/api/notion/blog', () => {
       NOTION_API_KEY: 'test-api-key',
       NOTION_DATABASE_ID: 'test-database-id',
     };
-
-    // Mock the notion query method
-    mockQuery = jest.fn();
-    (mockNotion as any).mockImplementation(() => ({
-      databases: {
-        query: mockQuery,
-      },
-    }));
   });
 
   afterEach(() => {

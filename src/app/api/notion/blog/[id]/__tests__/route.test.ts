@@ -1,42 +1,37 @@
 /**
  * @jest-environment node
  */
-import { GET } from '../route';
-import { Client } from '@notionhq/client';
+const mockPagesRetrieve = jest.fn();
+const mockBlocksChildrenList = jest.fn();
+jest.mock('@notionhq/client', () => ({
+  __esModule: true,
+  Client: jest.fn(() => ({
+    pages: {
+      retrieve: mockPagesRetrieve,
+    },
+    blocks: {
+      children: {
+        list: mockBlocksChildrenList,
+      },
+    },
+  })),
+}));
 
-// Mock the Notion client
-jest.mock('@notionhq/client');
-const mockNotion = Client as jest.MockedClass<typeof Client>;
+const { GET } = require('../route');
 
 // Mock environment variables
 const originalEnv = process.env;
 
 describe('/api/notion/blog/[id]', () => {
-  let mockPagesRetrieve: jest.Mock;
-  let mockBlocksChildrenList: jest.Mock;
-
   beforeEach(() => {
-    jest.clearAllMocks();
+    mockPagesRetrieve.mockClear();
+    mockBlocksChildrenList.mockClear();
     
     // Reset environment variables
     process.env = {
       ...originalEnv,
       NOTION_API_KEY: 'test-api-key',
     };
-
-    // Mock the notion methods
-    mockPagesRetrieve = jest.fn();
-    mockBlocksChildrenList = jest.fn();
-    (mockNotion as any).mockImplementation(() => ({
-      pages: {
-        retrieve: mockPagesRetrieve,
-      },
-      blocks: {
-        children: {
-          list: mockBlocksChildrenList,
-        },
-      },
-    }));
   });
 
   afterEach(() => {

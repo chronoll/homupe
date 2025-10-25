@@ -32,14 +32,9 @@ const formatDate = (dateString: string) => {
   });
 };
 
-interface BlogDetailPageProps {
-  params: {
-    id: string;
-  };
-}
-
-export default async function BlogDetailPage({ params }: BlogDetailPageProps) {
-  const post = await getBlogPost(params.id);
+export default async function BlogDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const { id } = await paramsPromise;
+  const post = await getBlogPost(id);
 
   if (!post) {
     notFound();
