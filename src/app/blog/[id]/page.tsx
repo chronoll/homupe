@@ -1,103 +1,48 @@
-'use client';
-
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import { notFound } from 'next/navigation';
-import { Container, Title, Group, Badge, Text, Loader, Alert, Button, Box } from '@mantine/core';
+import { Container, Title, Group, Badge, Text, Alert, Button, Box } from '@mantine/core';
 import { IconArrowLeft, IconCalendar, IconAlertCircle } from '@tabler/icons-react';
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { getBlogPosts, getBlogPost } from '@/lib/notion';
 import NotionBlockRenderer from '@/components/NotionBlockRenderer';
 import BlogBackground from '@/components/BlogBackground';
 import RelatedArticles from '@/components/RelatedArticles';
-import { BlockObjectResponse } from '@notionhq/client/build/src/api-endpoints';
 
-interface RelatedArticle {
-  id: string;
-  title: string;
-  date: string;
-  tags: string[];
-  category: string;
-}
+// ISR と SSG の設定
+export const revalidate = 3600; // 1時間ごとに再生成
 
-interface BlogPost {
-  id: string;
-  title: string;
-  date: string;
-  tags: string[];
-  category: string;
-  blocks: BlockObjectResponse[];
-  relatedArticles: RelatedArticle[];
-}
-
-export default function BlogDetailPage() {
-  const params = useParams();
-  const [post, setPost] = useState<BlogPost | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (params?.id) {
-      fetchBlogPost(params.id as string);
-    }
-  }, [params?.id]);
-
-  const fetchBlogPost = async (id: string) => {
-    try {
-      const response = await fetch(`/api/notion/blog/${id}`);
-      if (response.status === 404) {
-        notFound();
-        return;
-      }
-      if (!response.ok) {
-        throw new Error('Failed to fetch blog post');
-      }
-      const data = await response.json();
-      setPost(data);
-    } catch (err) {
-      if (err instanceof Error && err.message.includes('404')) {
-        notFound();
-        return;
-      }
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ja-JP', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
-
-  if (loading) {
-    return (
-      <BlogBackground>
-        <Container size="md" py="xl">
-          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-            <Loader size="lg" />
-          </div>
-        </Container>
-      </BlogBackground>
-    );
+// ビルド時に静的生成するパスを定義
+export async function generateStaticParams() {
+  try {
+    const posts = await getBlogPosts();
+    return posts.map((post) => ({
+      id: post.id,
+    }));
+  } catch (error) {
+    console.error('Failed to generate static params:', error);
+    return [];
   }
+}
 
-  if (error || !post) {
-    return (
-      <BlogBackground>
-        <Container size="md" py="xl">
-          <Alert icon={<IconAlertCircle size="1rem" />} title="エラー" color="red" mb="md">
-            {error || 'ブログ記事が見つかりません'}
-          </Alert>
-          <Button component={Link} href="/blog" leftSection={<IconArrowLeft size={16} />}>
-            ブログ一覧に戻る
-          </Button>
-        </Container>
-      </BlogBackground>
-    );
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('ja-JP', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+};
+
+interface BlogDetailPageProps {
+  params: {
+    id: string;
+  };
+}
+
+export default async function BlogDetailPage({ params }: BlogDetailPageProps) {
+  const post = await getBlogPost(params.id);
+
+  if (!post) {
+    notFound();
   }
 
   return (
@@ -131,26 +76,26 @@ export default function BlogDetailPage() {
         >
           <Title order={1} mb="md">{post.title}</Title>
         
-        <Group justify="space-between" align="center" mb="xl">
-          <Group gap="xs">
-            {post.category && (
-              <Badge variant="filled" size="md" color="blue">
-                {post.category}
-              </Badge>
-            )}
-            {post.tags.map((tag) => (
-              <Badge key={tag} variant="light" size="md">
-                {tag}
-              </Badge>
-            ))}
-          </Group>
+          <Group justify="space-between" align="center" mb="xl">
+            <Group gap="xs">
+              {post.category && (
+                <Badge variant="filled" size="md" color="blue">
+                  {post.category}
+                </Badge>
+              )}
+              {post.tags.map((tag) => (
+                <Badge key={tag} variant="light" size="md">
+                  {tag}
+                </Badge>
+              ))}
+            </Group>
 
-          <Group gap="xs">
-            <IconCalendar size={18} />
-            <Text size="sm" c="dimmed">
-              {formatDate(post.date)}
-            </Text>
-          </Group>
+            <Group gap="xs">
+              <IconCalendar size={18} />
+              <Text size="sm" c="dimmed">
+                {formatDate(post.date)}
+              </Text>
+            </Group>
           </Group>
         </Box>
 
@@ -166,7 +111,6 @@ export default function BlogDetailPage() {
           <NotionBlockRenderer blocks={post.blocks} />
         </Box>
 
-        {/* 関連記事セクション */}
         {post.relatedArticles && post.relatedArticles.length > 0 && (
           <Box mt="xl">
             <RelatedArticles articles={post.relatedArticles} />
