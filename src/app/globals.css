@@ -12,18 +12,25 @@
   --retro-shadow: #808080;
 }
 
-body {
-  background: var(--retro-bg);
-  background-image:
-    radial-gradient(circle at 20px 20px, #ff69b4 2px, transparent 2px),
-    radial-gradient(circle at 60px 60px, #00ffff 2px, transparent 2px);
-  background-size: 80px 80px;
-  color: var(--retro-text);
-  /* 平成時代によく使われていたフォントスタック */
-  font-family: 'MS UI Gothic', 'MS Gothic', 'Hiragino Kaku Gothic Pro', 'Meiryo', 'Noto Sans JP', sans-serif;
-  margin: 0;
-  padding: 20px;
-  min-height: 100vh;
+@layer base {
+  body {
+    background: var(--retro-bg);
+    background-image:
+      radial-gradient(circle at 20px 20px, #ff69b4 2px, transparent 2px),
+      radial-gradient(circle at 60px 60px, #00ffff 2px, transparent 2px);
+    background-size: 80px 80px;
+    color: var(--retro-text);
+    /* 平成時代によく使われていたフォントスタック */
+    font-family: 'MS UI Gothic', 'MS Gothic', 'Hiragino Kaku Gothic Pro', 'Meiryo', 'Noto Sans JP', sans-serif;
+    margin: 0;
+    padding: 20px;
+    min-height: 100vh;
+  }
+
+  .dark body {
+    background: #1A1B1E;
+    color: #C1C2C5;
+  }
 }
 
 /* 90年代風のボーダーエフェクト */

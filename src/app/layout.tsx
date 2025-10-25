@@ -14,11 +14,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ja" data-mantine-color-scheme="light">
+    <html lang="ja">
       <head>
+        <ColorSchemeScript defaultColorScheme="auto" />
       </head>
       <body>
-        <MantineProvider defaultColorScheme="light">{children}</MantineProvider>
+        <MantineProvider defaultColorScheme="auto">{children}</MantineProvider>
       </body>
     </html>
   );

@@ -4,6 +4,7 @@ import React from 'react';
 import { Group, Title, Button, rem } from '@mantine/core';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { ThemeToggle } from './ThemeToggle';
 
 interface AppHeaderProps {
   onAddCategory: () => void;
@@ -34,6 +35,7 @@ const AppHeader: React.FC<AppHeaderProps> = React.memo(({
           </Button>
         </Link>
         <Button onClick={onAddCategory}>+ カテゴリ作成</Button>
+        <ThemeToggle />
       </Group>
     </Group>
   );
