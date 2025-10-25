@@ -2,6 +2,7 @@
 
 import { Text, Title, List, Blockquote, Code, Divider, Image, Table, Box, Anchor } from '@mantine/core';
 import { BlockObjectResponse } from '@notionhq/client/build/src/api-endpoints';
+import NextImage from 'next/image';
 
 interface NotionBlockRendererProps {
   blocks: BlockObjectResponse[];
@@ -116,8 +117,12 @@ function BlockRenderer({ block }: { block: BlockObjectResponse }) {
       return imageUrl ? (
         <Box mb="md">
           <Image 
+            component={NextImage}
             src={imageUrl} 
             alt={block.image.caption?.[0]?.plain_text || 'Image'} 
+            width={800} // Placeholder width
+            height={600} // Placeholder height
+            style={{ width: '100%', height: 'auto', borderRadius: '8px' }}
             maw="100%"
           />
           {block.image.caption?.length > 0 && (
