@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "terminal-notifier -title \"Claude Code\" \\\n-message \"回答が完了しました\" \\\n-sound \"default\" \\\n-group \"claude-code-group-homupe\" \\"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import VisitorCounter from "@/components/VisitorCounter";
 import BBSBoard from "@/components/BBSBoard";
 
@@ -157,8 +158,8 @@ export default function Home() {
               ● リンク集
             </h3>
             <div style={{ fontSize: '14px', lineHeight: '1.8' }}>
-              <p><a href="/books">→ 本棚</a></p>
-              
+              <p><Link href="/blog">→ blog</Link></p>
+
               <p><a href="https://x.com/chronoll" target="_blank" rel="noopener noreferrer">→ X</a></p>
               <p><a href="https://www.instagram.com/chronoll" target="_blank" rel="noopener noreferrer">→ Instagram</a></p>
               <p><a href="https://github.com/chronoll" target="_blank" rel="noopener noreferrer">→ GitHub</a></p>

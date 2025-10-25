@@ -1,64 +1,98 @@
-import BlogList from '@/components/BlogList';
+import { Container, Title, Card, Text, Badge, Group, Stack, Alert } from '@mantine/core';
+import { IconCalendar, IconAlertCircle } from '@tabler/icons-react';
 import Link from 'next/link';
+import { getBlogPosts } from '@/lib/notion';
+import BlogBackground from '@/components/BlogBackground';
 
-export default function BlogPage() {
+// ISR (Incremental Static Regeneration) を設定
+export const revalidate = 3600; // 1時間ごとに再生成
+
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('ja-JP', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+};
+
+export default async function BlogPage() {
+  let posts;
+  let error = null;
+
+  try {
+    posts = await getBlogPosts();
+  } catch (err) {
+    error = err instanceof Error ? err.message : 'An error occurred';
+  }
+
+  if (error) {
+    return (
+      <BlogBackground>
+        <Container size="lg" py="xl">
+          <Alert icon={<IconAlertCircle size="1rem" />} title="エラー" color="red">
+            {error}
+          </Alert>
+        </Container>
+      </BlogBackground>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* ヘッダー */}
-      <header className="bg-white shadow-sm border-b border-slate-200">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <nav className="flex items-center justify-between">
-            <Link href="/" className="text-slate-600 hover:text-slate-900 transition-colors">
-              ← ホームへ戻る
-            </Link>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-              Blog
-            </h1>
-            <div className="w-24"></div>
-          </nav>
-        </div>
-      </header>
+    <BlogBackground>
+      <Container size="lg" py="xl">
+        <Title order={1} mb="xl" c="white">Blog</Title>
+      
+        <Stack gap="md">
+          {!posts || posts.length === 0 ? (
+            <Text c="white">ブログ記事がありません。</Text>
+          ) : (
+            posts.map((post) => (
+              <Link href={`/blog/${post.id}`} key={post.id} style={{ textDecoration: 'none' }}>
+                <Card 
+                  shadow="xl" 
+                  padding="lg" 
+                  radius="md" 
+                  withBorder
+                  className="blog-card" // ホバーエフェクト用のクラス
+                  style={{ 
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    transition: 'all 0.3s ease',
+                  }}
+                >
+                  <Group justify="flex-start" mb="xs">
+                    <Title order={3}>{post.title}</Title>
+                  </Group>
 
-      {/* メインコンテンツ */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* ヒーローセクション */}
-        <div className="text-center mb-16">
-          <h2 className="text-5xl font-bold text-slate-900 mb-4">
-            My Thoughts & Ideas
-          </h2>
-          <p className="text-xl text-slate-600 max-w-2xl mx-auto">
-            技術、デザイン、日々の発見について書いています
-          </p>
-        </div>
+                  <Group justify="space-between" align="center">
+                    <Group gap="xs">
+                      {post.category && (
+                        <Badge variant="filled" size="sm" color="blue">
+                          {post.category}
+                        </Badge>
+                      )}
+                      {post.tags.map((tag) => (
+                        <Badge key={tag} variant="light" size="sm">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </Group>
 
-        {/* カテゴリータグ */}
-        <div className="flex flex-wrap gap-3 justify-center mb-12">
-          <button className="px-4 py-2 bg-purple-100 text-purple-700 rounded-full hover:bg-purple-200 transition-colors">
-            すべて
-          </button>
-          <button className="px-4 py-2 bg-slate-100 text-slate-700 rounded-full hover:bg-slate-200 transition-colors">
-            技術
-          </button>
-          <button className="px-4 py-2 bg-slate-100 text-slate-700 rounded-full hover:bg-slate-200 transition-colors">
-            デザイン
-          </button>
-          <button className="px-4 py-2 bg-slate-100 text-slate-700 rounded-full hover:bg-slate-200 transition-colors">
-            ライフスタイル
-          </button>
-        </div>
-
-        {/* ブログ記事一覧 */}
-        <BlogList />
-      </main>
-
-      {/* フッター */}
-      <footer className="mt-24 border-t border-slate-200 bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <p className="text-center text-slate-600">
-            © 2025 chronoll. Modern design with ❤️
-          </p>
-        </div>
-      </footer>
-    </div>
+                    <Group gap="xs">
+                      <IconCalendar size={16} />
+                      <Text size="sm" c="dimmed">
+                        {formatDate(post.date)}
+                      </Text>
+                    </Group>
+                  </Group>
+                </Card>
+              </Link>
+            ))
+          )}
+        </Stack>
+      </Container>
+    </BlogBackground>
   );
 }
