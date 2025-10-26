@@ -121,7 +121,6 @@ export default function BooksPage() {
                       border: '2px solid #c0c0c0',
                       boxShadow: '2px 2px 4px #808080'
                     }}
-                    unoptimized
                   />
                 </div>
 
