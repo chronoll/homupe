@@ -10,10 +10,11 @@ interface BlogDetailPageProps {
 }
 
 /**
- * ブログ詳細ページ（Server Component）
- * Server Componentにより、Notionからのデータ取得がサーバーサイドで実行されます
+ * ブログ詳細ページ（Server Component with ISR）
+ * - 静的生成＋15分ごとに自動再検証
+ * - 高速な初期表示 + 定期的なコンテンツ更新
  */
-export const dynamic = 'force-dynamic';
+export const revalidate = 900; // 15分（900秒）ごとに再検証
 
 export default async function BlogDetailPage({ params }: BlogDetailPageProps) {
   const { id } = await params;
