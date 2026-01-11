@@ -16,12 +16,12 @@ jobs:
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      (github.event_name == 'issues' && github.event.issue.user.login == 'chronoll')
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      pull-requests: read
-      issues: read
+      contents: write
+      pull-requests: write
+      issues: write
       id-token: write
       actions: read # Required for Claude to read CI results on PRs
     steps:
@@ -40,11 +40,30 @@ jobs:
           additional_permissions: |
             actions: read
 
-          # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
-          # prompt: 'Update the pull request description to include a summary of changes.'
+          # Custom prompt for auto-handling issues created by @chronoll
+          prompt: |
+            REPO: ${{ github.repository }}
+            ISSUE NUMBER: ${{ github.event.issue.number }}
+            ISSUE TITLE: ${{ github.event.issue.title }}
+            ISSUE BODY: ${{ github.event.issue.body }}
 
-          # Optional: Add claude_args to customize behavior and configuration
-          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-          # or https://code.claude.com/docs/en/cli-reference for available options
-          # claude_args: '--allowed-tools Bash(gh pr:*)'
+            このIssueを解決してください。以下の方針に従ってください：
+
+            1. **Issueの内容を十分に理解できる場合**:
+               - 必要なコード変更を実装してください
+               - 新しいブランチを作成し、コミットしてください
+               - `gh pr create` を使用してPRを作成してください
+               - PRのタイトルは簡潔に、本文にはIssue番号を含めてください
+
+            2. **以下の場合は、コミットせずにIssueにコメントしてください**:
+               - Issueの内容が不明確で追加情報が必要な場合
+               - 実装方針について複数の選択肢があり、判断が必要な場合
+               - 技術的に実現困難または大規模な変更が必要な場合
+
+               コメントには @chronoll をメンションし、質問や懸念点を明確に記載してください。
+               `gh issue comment` コマンドを使用してください。
+
+            リポジトリの CLAUDE.md を参照し、コーディングスタイルや規約に従ってください。
+
+          claude_args: '--allowed-tools "Bash(git:*),Bash(gh issue:*),Bash(gh pr:*),Bash(gh search:*),Bash(npm:*),Bash(node:*)"'
 
