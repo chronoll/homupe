@@ -1,11 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
+import { Suspense } from "react";
 import VisitorCounter from "@/components/VisitorCounter";
 import BBSBoard from "@/components/BBSBoard";
 
-// 動的コンテンツ（訪問者数）のため動的レンダリングに変更
-export const dynamic = 'force-dynamic';
-
+/**
+ * ホームページ（Cache Components対応）
+ * 静的部分は事前レンダリングされ、動的部分（VisitorCounter, BBSBoard）は
+ * Suspenseでラップされてストリーミングされます
+ */
 export default function Home() {
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto' }}>
@@ -166,11 +169,45 @@ export default function Home() {
             </div>
           </div>
 
-          {/* カウンター */}
-          <VisitorCounter />
+          {/* カウンター（動的） */}
+          <Suspense fallback={
+            <div className="retro-border" style={{ marginBottom: '20px', padding: '15px' }}>
+              <h3 className="heisei-title" style={{
+                fontSize: '16px',
+                color: '#ff1493',
+                borderBottom: '1px solid #ff1493',
+                paddingBottom: '5px',
+                marginBottom: '10px'
+              }}>
+                ♥ 訪問者数
+              </h3>
+              <div style={{ textAlign: 'center', fontSize: '24px', fontWeight: 'bold', padding: '10px' }}>
+                読み込み中...
+              </div>
+            </div>
+          }>
+            <VisitorCounter />
+          </Suspense>
 
-          {/* BBS掲示板 */}
-          <BBSBoard />
+          {/* BBS掲示板（動的） */}
+          <Suspense fallback={
+            <div className="retro-border" style={{ marginBottom: '20px', padding: '15px' }}>
+              <h3 className="heisei-title" style={{
+                fontSize: '16px',
+                color: '#32cd32',
+                borderBottom: '1px solid #32cd32',
+                paddingBottom: '5px',
+                marginBottom: '10px'
+              }}>
+                ★ 掲示板
+              </h3>
+              <div style={{ padding: '10px', textAlign: 'center' }}>
+                読み込み中...
+              </div>
+            </div>
+          }>
+            <BBSBoard />
+          </Suspense>
         </div>
       </div>
 
