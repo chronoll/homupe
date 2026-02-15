@@ -155,3 +155,25 @@ export async function getRelatedArticles(pageId: string): Promise<BlogPost[]> {
     return [];
   }
 }
+
+/**
+ * ブロックから最初の画像URLを抽出
+ * @param blocks - Notion blocks
+ * @returns 最初に見つかった画像のURL、なければundefined
+ */
+export function extractFirstImageUrl(blocks: BlockObjectResponse[]): string | undefined {
+  for (const block of blocks) {
+    if (block.type === 'image') {
+      const imageUrl = block.image.type === 'external'
+        ? block.image.external.url
+        : block.image.type === 'file'
+        ? block.image.file.url
+        : undefined;
+
+      if (imageUrl) {
+        return imageUrl;
+      }
+    }
+  }
+  return undefined;
+}
