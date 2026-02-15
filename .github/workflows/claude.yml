@@ -65,5 +65,5 @@ jobs:
 
             リポジトリの CLAUDE.md を参照し、コーディングスタイルや規約に従ってください。
 
-          claude_args: '--allowed-tools "Bash(git:*),Bash(gh issue:*),Bash(gh pr:*),Bash(gh search:*),Bash(npm:*),Bash(node:*)"'
+          claude_args: '--allowed-tools "Edit,MultiEdit,Write,Bash(git:*),Bash(gh issue:*),Bash(gh pr:*),Bash(gh search:*),Bash(npm:*),Bash(node:*)"'
 
