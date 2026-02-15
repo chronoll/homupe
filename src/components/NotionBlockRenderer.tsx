@@ -157,6 +157,31 @@ function BlockRenderer({ block }: { block: BlockObjectResponse }) {
         </Box>
       );
 
+    case 'link_preview':
+      return (
+        <Box
+          mb="md"
+          p="md"
+          style={{
+            border: '1px solid #e0e0e0',
+            borderRadius: '8px',
+            backgroundColor: '#fafafa'
+          }}
+        >
+          <Anchor
+            href={block.link_preview.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              fontSize: '0.95rem',
+              wordBreak: 'break-word'
+            }}
+          >
+            {block.link_preview.url}
+          </Anchor>
+        </Box>
+      );
+
     case 'embed':
       return (
         <Box mb="md">
