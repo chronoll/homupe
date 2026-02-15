@@ -2,6 +2,8 @@
 
 import { Text, Title, List, Blockquote, Code, Divider, Image, Table, Box, Anchor } from '@mantine/core';
 import { BlockObjectResponse } from '@notionhq/client/build/src/api-endpoints';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 interface NotionBlockRendererProps {
   blocks: BlockObjectResponse[];
@@ -90,10 +92,41 @@ function BlockRenderer({ block }: { block: BlockObjectResponse }) {
       );
 
     case 'code':
+      const codeContent = block.code.rich_text.map(t => t.plain_text).join('');
+      const language = block.code.language || 'text';
+
       return (
-        <Code block mb="md" style={{ padding: '1rem' }}>
-          <RichTextRenderer richText={block.code.rich_text} />
-        </Code>
+        <Box mb="md" style={{ position: 'relative' }}>
+          <Box
+            style={{
+              backgroundColor: '#2d2d2d',
+              color: '#ccc',
+              fontSize: '0.85rem',
+              padding: '0.5rem 1rem',
+              borderTopLeftRadius: '4px',
+              borderTopRightRadius: '4px',
+              fontWeight: 500,
+              borderBottom: '1px solid #1a1a1a'
+            }}
+          >
+            {language}
+          </Box>
+          <SyntaxHighlighter
+            language={language}
+            style={tomorrow}
+            customStyle={{
+              margin: 0,
+              borderTopLeftRadius: 0,
+              borderTopRightRadius: 0,
+              borderBottomLeftRadius: '4px',
+              borderBottomRightRadius: '4px',
+              fontSize: '0.9rem',
+              padding: '1rem'
+            }}
+          >
+            {codeContent}
+          </SyntaxHighlighter>
+        </Box>
       );
 
     case 'quote':
