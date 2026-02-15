@@ -166,6 +166,7 @@ export default function Home() {
               <p><a href="https://x.com/chronoll" target="_blank" rel="noopener noreferrer">→ X</a></p>
               <p><a href="https://www.instagram.com/chronoll" target="_blank" rel="noopener noreferrer">→ Instagram</a></p>
               <p><a href="https://github.com/chronoll" target="_blank" rel="noopener noreferrer">→ GitHub</a></p>
+              <p><a href="https://speakerdeck.com/chronoll" target="_blank" rel="noopener noreferrer">→ SpeakerDeck</a></p>
             </div>
           </div>
 
