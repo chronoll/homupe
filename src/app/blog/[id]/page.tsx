@@ -103,6 +103,7 @@ export default async function BlogDetailPage({ params }: BlogDetailPageProps) {
       date: properties['公開日']?.date?.start || page.created_time,
       tags: properties['タグ']?.multi_select?.map((tag: { name: string }) => tag.name) || [],
       category: properties['選択']?.select?.name || '',
+      aiUsed: properties['AI利用']?.checkbox ?? false,
       blocks,
     };
 
