@@ -1,7 +1,7 @@
 'use client';
 
 import { Container, Title, Group, Badge, Text, Button, Box } from '@mantine/core';
-import { IconArrowLeft, IconCalendar } from '@tabler/icons-react';
+import { IconArrowLeft, IconCalendar, IconSparkles } from '@tabler/icons-react';
 import Link from 'next/link';
 import NotionBlockRenderer from '@/components/NotionBlockRenderer';
 import BlogBackground from '@/components/BlogBackground';
@@ -15,6 +15,7 @@ interface BlogDetailProps {
     date: string;
     tags: string[];
     category: string;
+    aiUsed?: boolean;
     blocks: BlockObjectResponse[];
   };
   relatedArticles: BlogPost[];
@@ -93,6 +94,25 @@ export default function BlogDetail({ post, relatedArticles }: BlogDetailProps) {
             padding: '2rem',
           }}
         >
+          {post.aiUsed && (
+            <Box
+              mb="md"
+              p="sm"
+              style={{
+                backgroundColor: '#eff6ff',
+                border: '1px solid #bfdbfe',
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+            >
+              <IconSparkles size={16} color="#3b82f6" style={{ flexShrink: 0 }} />
+              <Text size="xs" c="blue.7">
+                この記事では、生成AIの力を借りて文章を整えた箇所があります。
+              </Text>
+            </Box>
+          )}
           <NotionBlockRenderer blocks={post.blocks} />
         </Box>
 
