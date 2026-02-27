@@ -33,82 +33,84 @@ export default function BlogDetail({ post, relatedArticles }: BlogDetailProps) {
 
   return (
     <BlogBackground>
-      <Container size="md" py="xl">
-        <Button 
-          component={Link} 
-          href="/blog" 
-          variant="light" 
+      <Container size="md" py={48}>
+        <Button
+          component={Link}
+          href="/blog"
+          variant="subtle"
           leftSection={<IconArrowLeft size={16} />}
-          mb="xl"
-          c="white"
+          mb={32}
+          color="gray"
           style={{
-            background: 'rgba(255, 255, 255, 0.1)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
+            fontWeight: 500,
+            fontSize: '0.875rem',
           }}
         >
           ブログ一覧に戻る
         </Button>
 
-        <Box 
-          mb="xl"
-          style={{
-            background: 'rgba(255, 255, 255, 0.95)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            borderRadius: '12px',
-            padding: '2rem',
-          }}
-        >
-          <Title order={1} mb="md">{post.title}</Title>
-        
-          <Group justify="space-between" align="center" mb="xl">
-            <Group gap="xs">
-              {post.category && (
-                <Badge variant="filled" size="md" color="blue">
-                  {post.category}
-                </Badge>
-              )}
-              {post.tags.map((tag) => (
-                <Badge key={tag} variant="light" size="md">
-                  {tag}
-                </Badge>
-              ))}
-            </Group>
+        {/* Article header */}
+        <Box mb={32}>
+          <Group gap={6} mb={12}>
+            <IconCalendar size={14} color="#94a3b8" />
+            <Text size="sm" c="dimmed" style={{ fontSize: '0.8rem' }}>
+              {formatDate(post.date)}
+            </Text>
+          </Group>
 
-            <Group gap="xs">
-              <IconCalendar size={18} />
-              <Text size="sm" c="dimmed">
-                {formatDate(post.date)}
-              </Text>
-            </Group>
+          <Title
+            order={1}
+            mb={16}
+            style={{
+              fontSize: '1.85rem',
+              fontWeight: 700,
+              color: '#1e293b',
+              lineHeight: 1.4,
+              letterSpacing: '-0.01em',
+            }}
+          >
+            {post.title}
+          </Title>
+
+          <Group gap={6}>
+            {post.category && (
+              <Badge variant="light" size="sm" color="indigo" style={{ fontWeight: 500 }}>
+                {post.category}
+              </Badge>
+            )}
+            {post.tags.map((tag) => (
+              <Badge key={tag} variant="outline" size="sm" color="gray" style={{ fontWeight: 400 }}>
+                {tag}
+              </Badge>
+            ))}
           </Group>
         </Box>
 
+        {/* Article body */}
         <Box
           style={{
-            background: 'rgba(255, 255, 255, 0.95)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
             borderRadius: '12px',
-            padding: '2rem',
+            padding: '2.5rem',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
           }}
         >
           {post.aiUsed && (
             <Box
-              mb="md"
+              mb="lg"
               p="sm"
               style={{
-                backgroundColor: '#eff6ff',
-                border: '1px solid #bfdbfe',
-                borderRadius: '6px',
+                backgroundColor: '#eef2ff',
+                border: '1px solid #c7d2fe',
+                borderRadius: '8px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
               }}
             >
-              <IconSparkles size={16} color="#3b82f6" style={{ flexShrink: 0 }} />
-              <Text size="xs" c="blue.7">
+              <IconSparkles size={16} color="#6366f1" style={{ flexShrink: 0 }} />
+              <Text size="xs" c="indigo.7">
                 この記事では、生成AIの力を借りて文章を整えた箇所があります。
               </Text>
             </Box>
@@ -116,9 +118,9 @@ export default function BlogDetail({ post, relatedArticles }: BlogDetailProps) {
           <NotionBlockRenderer blocks={post.blocks} />
         </Box>
 
-        {/* 関連記事セクション */}
+        {/* Related articles */}
         {relatedArticles && relatedArticles.length > 0 && (
-          <Box mt="xl">
+          <Box mt={40}>
             <RelatedArticles articles={relatedArticles} />
           </Box>
         )}
