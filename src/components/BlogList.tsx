@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { Container, Title, Card, Text, Badge, Group, Stack } from '@mantine/core';
-import { IconCalendar } from '@tabler/icons-react';
+import { IconCalendar, IconArrowRight } from '@tabler/icons-react';
 import BlogBackground from '@/components/BlogBackground';
 import { BlogPost } from '@/lib/notion';
 
@@ -24,64 +24,103 @@ export default function BlogList({ posts }: BlogListProps) {
 
   return (
     <BlogBackground>
-      <Container size="lg" py="xl">
-        <Title order={1} mb="xl" c="white">Blog</Title>
+      <Container size="md" py={48}>
+        <Title
+          order={1}
+          mb={40}
+          style={{
+            fontSize: '2rem',
+            fontWeight: 700,
+            color: '#1e293b',
+            letterSpacing: '-0.02em',
+          }}
+        >
+          Blog
+        </Title>
 
-        <Stack gap="md">
+        <Stack gap="lg">
           {posts.length === 0 ? (
-            <Text c="white">ブログ記事がありません。</Text>
+            <Text c="dimmed" size="lg">ブログ記事がありません。</Text>
           ) : (
             posts.map((post) => (
               <Card
                 key={post.id}
-                shadow="xl"
-                padding="lg"
-                radius="md"
-                withBorder
+                padding="xl"
+                radius="lg"
                 style={{
                   cursor: 'pointer',
-                  background: 'rgba(255, 255, 255, 0.95)',
-                  backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  transition: 'all 0.3s ease',
+                  background: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+                  transition: 'all 0.2s ease',
                 }}
                 onClick={() => router.push(`/blog/${post.id}`)}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-4px)';
-                  e.currentTarget.style.boxShadow = '0 20px 40px rgba(0, 0, 0, 0.2)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.08)';
+                  e.currentTarget.style.borderColor = '#c7d2fe';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.1)';
+                  e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.04)';
+                  e.currentTarget.style.borderColor = '#e2e8f0';
                 }}
               >
-              <Group justify="flex-start" mb="xs">
-                <Title order={3}>{post.title}</Title>
-              </Group>
+                <Group justify="space-between" align="flex-start" wrap="nowrap">
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <Group gap="xs" mb={8}>
+                      <IconCalendar size={14} color="#94a3b8" />
+                      <Text size="sm" c="dimmed" style={{ fontSize: '0.8rem' }}>
+                        {formatDate(post.date)}
+                      </Text>
+                    </Group>
 
-              <Group justify="space-between" align="center">
-                <Group gap="xs">
-                  {post.category && (
-                    <Badge variant="filled" size="sm" color="blue">
-                      {post.category}
-                    </Badge>
-                  )}
-                  {post.tags.map((tag) => (
-                    <Badge key={tag} variant="light" size="sm">
-                      {tag}
-                    </Badge>
-                  ))}
-                </Group>
+                    <Title
+                      order={3}
+                      mb={12}
+                      style={{
+                        fontSize: '1.15rem',
+                        fontWeight: 600,
+                        color: '#1e293b',
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      {post.title}
+                    </Title>
 
-                <Group gap="xs">
-                  <IconCalendar size={16} />
-                  <Text size="sm" c="dimmed">
-                    {formatDate(post.date)}
-                  </Text>
+                    <Group gap={6}>
+                      {post.category && (
+                        <Badge
+                          variant="light"
+                          size="sm"
+                          color="indigo"
+                          style={{ fontWeight: 500 }}
+                        >
+                          {post.category}
+                        </Badge>
+                      )}
+                      {post.tags.map((tag) => (
+                        <Badge
+                          key={tag}
+                          variant="outline"
+                          size="sm"
+                          color="gray"
+                          style={{ fontWeight: 400 }}
+                        >
+                          {tag}
+                        </Badge>
+                      ))}
+                    </Group>
+                  </div>
+
+                  <IconArrowRight
+                    size={18}
+                    color="#94a3b8"
+                    style={{ flexShrink: 0, marginTop: '2px' }}
+                  />
                 </Group>
-              </Group>
-            </Card>
-          ))
+              </Card>
+            ))
           )}
         </Stack>
       </Container>

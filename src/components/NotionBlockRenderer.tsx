@@ -3,7 +3,7 @@
 import { Text, Title, List, Blockquote, Code, Divider, Image, Table, Box, Anchor } from '@mantine/core';
 import { BlockObjectResponse } from '@notionhq/client/build/src/api-endpoints';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 interface NotionBlockRendererProps {
   blocks: BlockObjectResponse[];
@@ -11,11 +11,11 @@ interface NotionBlockRendererProps {
 
 export default function NotionBlockRenderer({ blocks }: NotionBlockRendererProps) {
   return (
-    <>
+    <Box style={{ lineHeight: 1.8, color: '#334155' }}>
       {blocks.map((block) => (
         <BlockRenderer key={block.id} block={block} />
       ))}
-    </>
+    </Box>
   );
 }
 
@@ -23,28 +23,55 @@ function BlockRenderer({ block }: { block: BlockObjectResponse }) {
   switch (block.type) {
     case 'paragraph':
       return (
-        <Text mb="md">
+        <Text mb="md" style={{ lineHeight: 1.8, color: '#334155' }}>
           <RichTextRenderer richText={block.paragraph.rich_text} />
         </Text>
       );
 
     case 'heading_1':
       return (
-        <Title order={1} mt="xl" mb="md">
+        <Title
+          order={2}
+          mt={40}
+          mb="md"
+          style={{
+            color: '#1e293b',
+            fontWeight: 700,
+            letterSpacing: '-0.01em',
+            borderBottom: '1px solid #e2e8f0',
+            paddingBottom: '0.5rem',
+          }}
+        >
           <RichTextRenderer richText={block.heading_1.rich_text} />
         </Title>
       );
 
     case 'heading_2':
       return (
-        <Title order={2} mt="lg" mb="md">
+        <Title
+          order={3}
+          mt={32}
+          mb="md"
+          style={{
+            color: '#1e293b',
+            fontWeight: 600,
+          }}
+        >
           <RichTextRenderer richText={block.heading_2.rich_text} />
         </Title>
       );
 
     case 'heading_3':
       return (
-        <Title order={3} mt="md" mb="sm">
+        <Title
+          order={4}
+          mt={24}
+          mb="sm"
+          style={{
+            color: '#334155',
+            fontWeight: 600,
+          }}
+        >
           <RichTextRenderer richText={block.heading_3.rich_text} />
         </Title>
       );
@@ -70,13 +97,16 @@ function BlockRenderer({ block }: { block: BlockObjectResponse }) {
     case 'to_do':
       return (
         <Box mb="xs" style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-          <input 
-            type="checkbox" 
-            checked={block.to_do.checked} 
-            readOnly 
-            style={{ marginTop: '4px' }}
+          <input
+            type="checkbox"
+            checked={block.to_do.checked}
+            readOnly
+            style={{ marginTop: '4px', accentColor: '#6366f1' }}
           />
-          <Text style={{ textDecoration: block.to_do.checked ? 'line-through' : 'none' }}>
+          <Text style={{
+            textDecoration: block.to_do.checked ? 'line-through' : 'none',
+            color: block.to_do.checked ? '#94a3b8' : '#334155',
+          }}>
             <RichTextRenderer richText={block.to_do.rich_text} />
           </Text>
         </Box>
@@ -85,7 +115,7 @@ function BlockRenderer({ block }: { block: BlockObjectResponse }) {
     case 'toggle':
       return (
         <details style={{ marginBottom: '1rem' }}>
-          <summary style={{ cursor: 'pointer', userSelect: 'none' }}>
+          <summary style={{ cursor: 'pointer', userSelect: 'none', color: '#334155', fontWeight: 500 }}>
             <RichTextRenderer richText={block.toggle.rich_text} />
           </summary>
         </details>
@@ -96,32 +126,30 @@ function BlockRenderer({ block }: { block: BlockObjectResponse }) {
       const language = block.code.language || 'text';
 
       return (
-        <Box mb="md" style={{ position: 'relative' }}>
+        <Box mb="md" style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
           <Box
             style={{
-              backgroundColor: '#2d2d2d',
-              color: '#ccc',
-              fontSize: '0.85rem',
-              padding: '0.5rem 1rem',
-              borderTopLeftRadius: '4px',
-              borderTopRightRadius: '4px',
+              backgroundColor: '#f8fafc',
+              color: '#64748b',
+              fontSize: '0.75rem',
+              padding: '0.4rem 1rem',
               fontWeight: 500,
-              borderBottom: '1px solid #1a1a1a'
+              borderBottom: '1px solid #e2e8f0',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
             }}
           >
             {language}
           </Box>
           <SyntaxHighlighter
             language={language}
-            style={tomorrow}
+            style={oneLight}
             customStyle={{
               margin: 0,
-              borderTopLeftRadius: 0,
-              borderTopRightRadius: 0,
-              borderBottomLeftRadius: '4px',
-              borderBottomRightRadius: '4px',
-              fontSize: '0.9rem',
-              padding: '1rem'
+              borderRadius: 0,
+              fontSize: '0.875rem',
+              padding: '1rem',
+              background: '#fafbfc',
             }}
           >
             {codeContent}
@@ -131,30 +159,41 @@ function BlockRenderer({ block }: { block: BlockObjectResponse }) {
 
     case 'quote':
       return (
-        <Blockquote mb="md">
+        <Blockquote
+          mb="md"
+          style={{
+            borderLeftColor: '#6366f1',
+            backgroundColor: '#fafafe',
+            borderRadius: '0 8px 8px 0',
+            color: '#475569',
+            fontStyle: 'italic',
+          }}
+        >
           <RichTextRenderer richText={block.quote.rich_text} />
         </Blockquote>
       );
 
     case 'divider':
-      return <Divider my="xl" />;
+      return <Divider my="xl" color="#e2e8f0" />;
 
     case 'image':
-      const imageUrl = block.image.type === 'external' 
-        ? block.image.external.url 
-        : block.image.type === 'file' 
-        ? block.image.file.url 
+      const imageUrl = block.image.type === 'external'
+        ? block.image.external.url
+        : block.image.type === 'file'
+        ? block.image.file.url
         : '';
-      
+
       return imageUrl ? (
         <Box mb="md">
-          <Image 
-            src={imageUrl} 
-            alt={block.image.caption?.[0]?.plain_text || 'Image'} 
-            maw="100%"
-          />
+          <Box style={{ borderRadius: '8px', overflow: 'hidden' }}>
+            <Image
+              src={imageUrl}
+              alt={block.image.caption?.[0]?.plain_text || 'Image'}
+              maw="100%"
+            />
+          </Box>
           {block.image.caption?.length > 0 && (
-            <Text size="sm" c="dimmed" ta="center" mt="xs">
+            <Text size="sm" c="dimmed" ta="center" mt="xs" style={{ fontSize: '0.8rem' }}>
               <RichTextRenderer richText={block.image.caption} />
             </Text>
           )}
@@ -162,14 +201,14 @@ function BlockRenderer({ block }: { block: BlockObjectResponse }) {
       ) : null;
 
     case 'video':
-      const videoUrl = block.video.type === 'external' 
-        ? block.video.external.url 
-        : block.video.type === 'file' 
-        ? block.video.file.url 
+      const videoUrl = block.video.type === 'external'
+        ? block.video.external.url
+        : block.video.type === 'file'
+        ? block.video.file.url
         : '';
-      
+
       return videoUrl ? (
-        <Box mb="md">
+        <Box mb="md" style={{ borderRadius: '8px', overflow: 'hidden' }}>
           <video controls style={{ width: '100%', maxWidth: '100%' }}>
             <source src={videoUrl} />
           </video>
@@ -178,8 +217,17 @@ function BlockRenderer({ block }: { block: BlockObjectResponse }) {
 
     case 'bookmark':
       return (
-        <Box mb="md" p="md" style={{ border: '1px solid #e0e0e0', borderRadius: '8px' }}>
-          <Anchor href={block.bookmark.url} target="_blank" rel="noopener noreferrer">
+        <Box
+          mb="md"
+          p="md"
+          style={{
+            border: '1px solid #e2e8f0',
+            borderRadius: '8px',
+            backgroundColor: '#fafbfc',
+            transition: 'border-color 0.2s ease',
+          }}
+        >
+          <Anchor href={block.bookmark.url} target="_blank" rel="noopener noreferrer" style={{ color: '#6366f1' }}>
             {block.bookmark.url}
           </Anchor>
           {block.bookmark.caption?.length > 0 && (
@@ -196,9 +244,9 @@ function BlockRenderer({ block }: { block: BlockObjectResponse }) {
           mb="md"
           p="md"
           style={{
-            border: '1px solid #e0e0e0',
+            border: '1px solid #e2e8f0',
             borderRadius: '8px',
-            backgroundColor: '#fafafa'
+            backgroundColor: '#fafbfc',
           }}
         >
           <Anchor
@@ -207,7 +255,8 @@ function BlockRenderer({ block }: { block: BlockObjectResponse }) {
             rel="noopener noreferrer"
             style={{
               fontSize: '0.95rem',
-              wordBreak: 'break-word'
+              wordBreak: 'break-word',
+              color: '#6366f1',
             }}
           >
             {block.link_preview.url}
@@ -217,19 +266,17 @@ function BlockRenderer({ block }: { block: BlockObjectResponse }) {
 
     case 'embed':
       return (
-        <Box mb="md">
+        <Box mb="md" style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
           <iframe
             src={block.embed.url}
             width="100%"
             height="400"
-            style={{ border: 'none', borderRadius: '8px' }}
+            style={{ border: 'none' }}
           />
         </Box>
       );
 
     case 'table':
-      // Tableブロックは子ブロックを別途取得する必要があるため、
-      // ここでは簡易的な実装とする
       return (
         <Box mb="md" style={{ overflowX: 'auto' }}>
           <Table>
@@ -246,20 +293,22 @@ function BlockRenderer({ block }: { block: BlockObjectResponse }) {
 
     case 'callout':
       return (
-        <Box 
-          mb="md" 
-          p="md" 
-          style={{ 
-            backgroundColor: '#f5f5f5', 
-            borderLeft: '4px solid #4a90e2',
-            borderRadius: '4px'
+        <Box
+          mb="md"
+          p="md"
+          style={{
+            backgroundColor: '#f8fafc',
+            borderLeft: '3px solid #6366f1',
+            borderRadius: '0 8px 8px 0',
           }}
         >
-          <Box style={{ display: 'flex', gap: '8px' }}>
+          <Box style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
             {block.callout.icon && (
-              <span>{block.callout.icon.type === 'emoji' ? block.callout.icon.emoji : '💡'}</span>
+              <span style={{ fontSize: '1.1rem', lineHeight: 1.6 }}>
+                {block.callout.icon.type === 'emoji' ? block.callout.icon.emoji : '💡'}
+              </span>
             )}
-            <Text>
+            <Text style={{ color: '#334155', lineHeight: 1.7 }}>
               <RichTextRenderer richText={block.callout.rich_text} />
             </Text>
           </Box>
@@ -279,14 +328,23 @@ function RichTextRenderer({ richText }: { richText: any[] }) {
     <>
       {richText.map((text, index) => {
         const styles: React.CSSProperties = {};
-        
-        if (text.annotations?.bold) styles.fontWeight = 'bold';
+
+        if (text.annotations?.bold) styles.fontWeight = 600;
         if (text.annotations?.italic) styles.fontStyle = 'italic';
         if (text.annotations?.strikethrough) styles.textDecoration = 'line-through';
         if (text.annotations?.underline) styles.textDecoration = 'underline';
         if (text.annotations?.code) {
           return (
-            <Code key={index} style={{ fontSize: 'inherit' }}>
+            <Code
+              key={index}
+              style={{
+                fontSize: '0.875em',
+                backgroundColor: '#f1f5f9',
+                color: '#6366f1',
+                padding: '0.15em 0.4em',
+                borderRadius: '4px',
+              }}
+            >
               {text.plain_text}
             </Code>
           );
@@ -294,12 +352,12 @@ function RichTextRenderer({ richText }: { richText: any[] }) {
 
         if (text.href) {
           return (
-            <Anchor 
-              key={index} 
-              href={text.href} 
-              target="_blank" 
+            <Anchor
+              key={index}
+              href={text.href}
+              target="_blank"
               rel="noopener noreferrer"
-              style={styles}
+              style={{ ...styles, color: '#6366f1', textDecoration: 'underline', textDecorationColor: '#c7d2fe' }}
             >
               {text.plain_text}
             </Anchor>
