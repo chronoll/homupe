@@ -145,6 +145,36 @@ export default function Home() {
               />
             </div>
           </div>
+
+          {/* 本棚 */}
+          <div className="retro-border" style={{ marginBottom: '20px', padding: '15px' }}>
+            <h2 className="heisei-title" style={{
+              fontSize: '20px',
+              color: '#8b4513',
+              borderBottom: '2px solid #8b4513',
+              paddingBottom: '5px',
+              marginBottom: '15px'
+            }}>
+              📚 本棚
+            </h2>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'center', overflow: 'hidden', maxHeight: '120px' }}>
+              {[1, 2, 3, 4, 5, 6].map((n) => (
+                <Image
+                  key={n}
+                  src={`/images/books/book${n}.jpg`}
+                  alt="本の表紙"
+                  width={80}
+                  height={120}
+                  style={{ objectFit: 'cover', border: '1px solid #ccc', boxShadow: '2px 2px 4px #808080' }}
+                />
+              ))}
+            </div>
+            <div style={{ textAlign: 'center', marginTop: '10px' }}>
+              <Link href="/books" style={{ color: '#8b4513', fontWeight: 'bold' }}>
+                → もっと見る
+              </Link>
+            </div>
+          </div>
         </div>
 
         {/* 右側：サイドバー */}
