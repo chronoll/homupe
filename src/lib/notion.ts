@@ -1,5 +1,6 @@
 import { Client } from '@notionhq/client';
 import { PageObjectResponse, BlockObjectResponse } from '@notionhq/client/build/src/api-endpoints';
+import type { Book, BookStatus, BookCategory } from '@/lib/types';
 
 const notion = new Client({
   auth: process.env.NOTION_API_KEY,
@@ -154,6 +155,67 @@ export async function getRelatedArticles(pageId: string): Promise<BlogPost[]> {
     console.error('Error fetching related articles:', error);
     return [];
   }
+}
+
+/**
+ * 本棚データを取得
+ */
+export async function getBooks(): Promise<Book[]> {
+  const databaseId = process.env.NOTION_BOOKS_DATABASE_ID;
+
+  if (!databaseId) {
+    console.warn('NOTION_BOOKS_DATABASE_ID not configured, returning empty books');
+    return [];
+  }
+
+  const response = await notion.databases.query({
+    database_id: databaseId,
+    sorts: [
+      {
+        property: '購入日',
+        direction: 'descending',
+      },
+    ],
+  });
+
+  const books = response.results.map((result) => {
+    const page = result as PageObjectResponse;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const properties = page.properties as Record<string, any>;
+
+    const title = properties['タイトル']?.title?.[0]?.plain_text || 'Untitled';
+    const author = properties['著者']?.rich_text?.[0]?.plain_text || '';
+    const publisher = properties['出版社']?.rich_text?.[0]?.plain_text || '';
+    const status = (properties['ステータス']?.status?.name || '未読') as BookStatus;
+    const category = (properties['選択']?.select?.name || '一般') as BookCategory;
+    const purchaseDate = properties['購入日']?.date?.start || null;
+    const finishDate = properties['読了日']?.date?.start || null;
+    const url = properties['URL']?.url || null;
+
+    let coverImageUrl: string | null = null;
+    if (page.cover) {
+      if (page.cover.type === 'external') {
+        coverImageUrl = page.cover.external.url;
+      } else if (page.cover.type === 'file') {
+        coverImageUrl = page.cover.file.url;
+      }
+    }
+
+    return {
+      id: page.id,
+      title,
+      author,
+      publisher,
+      status,
+      category,
+      purchaseDate,
+      finishDate,
+      url,
+      coverImageUrl,
+    };
+  });
+
+  return books;
 }
 
 /**

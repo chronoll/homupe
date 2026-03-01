@@ -10,6 +10,7 @@
   --retro-visited: #800080;
   --retro-border: #c0c0c0;
   --retro-shadow: #808080;
+  --body-padding: 20px;
 }
 
 body {
@@ -22,7 +23,7 @@ body {
   /* 平成時代によく使われていたフォントスタック */
   font-family: 'MS UI Gothic', 'MS Gothic', 'Hiragino Kaku Gothic Pro', 'Meiryo', 'Noto Sans JP', sans-serif;
   margin: 0;
-  padding: 20px;
+  padding: var(--body-padding);
   min-height: 100vh;
 }
 
@@ -131,8 +132,11 @@ th {
 
 /* レスポンシブ対応 */
 @media (max-width: 768px) {
+  :root {
+    --body-padding: 10px;
+  }
+
   body {
-    padding: 10px;
     background-size: 40px 40px;
   }
 
@@ -165,8 +169,11 @@ th {
 }
 
 @media (max-width: 480px) {
+  :root {
+    --body-padding: 5px;
+  }
+
   body {
-    padding: 5px;
     font-size: 14px;
   }
 
