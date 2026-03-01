@@ -11,7 +11,7 @@ interface BookShelfProps {
 
 const BOOK_W = 100;
 const BOOK_H = 148;
-const SHELF_GAP = 34; // row-gap: 棚板 + 余白
+const SHELF_GAP = 17; // row-gap: 棚板 + 余白
 const PERIOD = BOOK_H + SHELF_GAP; // グリッド1行分の周期
 
 // 棚板を背景グラデーションで描画（行の折り返しに自動対応）
@@ -19,14 +19,14 @@ const shelfBackground = `repeating-linear-gradient(
   to bottom,
   transparent 0px,
   transparent ${BOOK_H}px,
-  #6B3410 ${BOOK_H}px,
-  #A0522D ${BOOK_H + 2}px,
-  #CD853F ${BOOK_H + 10}px,
-  #A0522D ${BOOK_H + 18}px,
-  #5C2E0A ${BOOK_H + 22}px,
-  rgba(0,0,0,0.12) ${BOOK_H + 22}px,
-  rgba(0,0,0,0.03) ${BOOK_H + 28}px,
-  transparent ${BOOK_H + 30}px,
+  #95a0ab ${BOOK_H}px,
+  #b0b8c1 ${BOOK_H + 1}px,
+  #d5dbe1 ${BOOK_H + 5}px,
+  #b0b8c1 ${BOOK_H + 9}px,
+  #8a949e ${BOOK_H + 11}px,
+  rgba(0,0,0,0.08) ${BOOK_H + 11}px,
+  rgba(0,0,0,0.02) ${BOOK_H + 15}px,
+  transparent ${BOOK_H + 17}px,
   transparent ${PERIOD}px
 )`;
 
@@ -129,10 +129,10 @@ function ShelfSection({ books, onBookClick }: { books: Book[]; onBookClick: (b: 
         </div>
         <div
           style={{
-            height: 22,
-            background: "linear-gradient(90deg, #8B4513 0%, #A0522D 20%, #CD853F 50%, #A0522D 80%, #8B4513 100%)",
-            borderTop: "2px solid #6B3410",
-            borderBottom: "3px solid #5C2E0A",
+            height: 11,
+            background: "linear-gradient(90deg, #95a0ab 0%, #b0b8c1 20%, #d5dbe1 50%, #b0b8c1 80%, #95a0ab 100%)",
+            borderTop: "1px solid #a3acb5",
+            borderBottom: "2px solid #8a949e",
           }}
         />
       </div>
@@ -161,9 +161,9 @@ function ShelfSection({ books, onBookClick }: { books: Book[]; onBookClick: (b: 
       </div>
       <div
         style={{
-          height: 22,
-          background: `linear-gradient(to bottom, #6B3410 0px, #A0522D 2px, #CD853F 10px, #A0522D 18px, #5C2E0A 22px)`,
-          boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
+          height: 11,
+          background: `linear-gradient(to bottom, #95a0ab 0px, #b0b8c1 1px, #d5dbe1 5px, #b0b8c1 9px, #8a949e 11px)`,
+          boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
         }}
       />
     </div>
@@ -285,7 +285,7 @@ export default function BookShelf({ books }: BookShelfProps) {
     <div
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(180deg, #f5e6d3 0%, #e8d5c0 100%)",
+        background: "linear-gradient(180deg, #f8f9fa 0%, #f0f1f3 100%)",
         padding: "24px var(--body-padding)",
         margin: "calc(-1 * var(--body-padding))",
       }}
@@ -298,7 +298,7 @@ export default function BookShelf({ books }: BookShelfProps) {
             fontFamily: "'Noto Sans JP', sans-serif",
             fontSize: 28,
             fontWeight: 700,
-            color: "#5C2E0A",
+            color: "#2d3436",
             margin: "0 0 24px",
             letterSpacing: "0.05em",
           }}
@@ -313,19 +313,19 @@ export default function BookShelf({ books }: BookShelfProps) {
           mb="lg"
           styles={{
             list: {
-              borderBottom: "2px solid #8B4513",
+              borderBottom: "2px solid #868e96",
             },
             tab: {
-              color: "#5C2E0A",
+              color: "#495057",
               fontWeight: 600,
               fontFamily: "'Noto Sans JP', sans-serif",
               "&[data-active]": {
-                color: "#8B4513",
-                borderColor: "#8B4513",
-                backgroundColor: "rgba(139, 69, 19, 0.1)",
+                color: "#495057",
+                borderColor: "#495057",
+                backgroundColor: "rgba(73, 80, 87, 0.08)",
               },
               "&:hover": {
-                backgroundColor: "rgba(139, 69, 19, 0.05)",
+                backgroundColor: "rgba(73, 80, 87, 0.04)",
               },
             },
           }}
@@ -339,14 +339,10 @@ export default function BookShelf({ books }: BookShelfProps) {
         {/* 本棚フレーム */}
         <div
           style={{
-            borderLeft: "14px solid #6B3410",
-            borderRight: "14px solid #6B3410",
-            borderBottom: "14px solid #6B3410",
-            borderTop: "14px solid #6B3410",
-            borderImage: "linear-gradient(180deg, #8B4513 0%, #A0522D 50%, #8B4513 100%) 1",
-            background: "linear-gradient(180deg, #faf3eb 0%, #f0e4d4 100%)",
-            borderRadius: "4px",
-            boxShadow: "4px 4px 16px rgba(0,0,0,0.25), inset 0 0 20px rgba(139,69,19,0.08)",
+            border: "6px solid #dee2e6",
+            background: "linear-gradient(180deg, #ffffff 0%, #fafafa 100%)",
+            borderRadius: "12px",
+            boxShadow: "0 2px 12px rgba(0,0,0,0.08), inset 0 0 20px rgba(0,0,0,0.03)",
           }}
         >
           {/* 読書中 / 未読 セクション */}
@@ -355,7 +351,7 @@ export default function BookShelf({ books }: BookShelfProps) {
               fontFamily: "'Noto Sans JP', sans-serif",
               fontSize: 14,
               fontWeight: 600,
-              color: "#5C2E0A",
+              color: "#495057",
               padding: "12px 24px 0",
               display: "flex",
               alignItems: "center",
@@ -381,7 +377,7 @@ export default function BookShelf({ books }: BookShelfProps) {
               fontFamily: "'Noto Sans JP', sans-serif",
               fontSize: 14,
               fontWeight: 600,
-              color: "#5C2E0A",
+              color: "#495057",
               padding: "16px 24px 0",
               display: "flex",
               alignItems: "center",

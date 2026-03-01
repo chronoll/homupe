@@ -1,1 +1,2 @@
 [  196525ms] [ERROR] Unsupported style property %s. Did you mean %s? &[data-active] &[dataActive] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[ 1565822ms] [ERROR] Unsupported style property %s. Did you mean %s? &[data-active] &[dataActive] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
