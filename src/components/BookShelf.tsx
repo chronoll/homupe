@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Tabs, Modal, Text, Badge, Group, Stack, Button } from "@mantine/core";
 import { IconExternalLink } from "@tabler/icons-react";
 import type { Book, BookCategory } from "@/lib/types";
+import { PageLayout, ContentFrame, SectionHeader } from "@/components/PageLayout";
 
 interface BookShelfProps {
   books: Book[];
@@ -282,124 +283,47 @@ export default function BookShelf({ books }: BookShelfProps) {
   };
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "linear-gradient(180deg, #f8f9fa 0%, #f0f1f3 100%)",
-        padding: "24px var(--body-padding)",
-        margin: "calc(-1 * var(--body-padding))",
-      }}
-    >
-      <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 16px" }}>
-        {/* ヘッダー */}
-        <h1
-          style={{
-            textAlign: "center",
+    <PageLayout title="本棚">
+      {/* タブ */}
+      <Tabs
+        value={activeTab}
+        onChange={(value) => setActiveTab((value ?? "一般") as BookCategory)}
+        mb="lg"
+        styles={{
+          list: {
+            borderBottom: "2px solid #868e96",
+          },
+          tab: {
+            color: "#495057",
+            fontWeight: 600,
             fontFamily: "'Noto Sans JP', sans-serif",
-            fontSize: 28,
-            fontWeight: 700,
-            color: "#2d3436",
-            margin: "0 0 24px",
-            letterSpacing: "0.05em",
-          }}
-        >
-          本棚
-        </h1>
-
-        {/* タブ */}
-        <Tabs
-          value={activeTab}
-          onChange={(value) => setActiveTab((value ?? "一般") as BookCategory)}
-          mb="lg"
-          styles={{
-            list: {
-              borderBottom: "2px solid #868e96",
+            "&[data-active]": {
+              color: "#495057",
+              borderColor: "#495057",
+              backgroundColor: "rgba(73, 80, 87, 0.08)",
             },
-            tab: {
-              color: "#495057",
-              fontWeight: 600,
-              fontFamily: "'Noto Sans JP', sans-serif",
-              "&[data-active]": {
-                color: "#495057",
-                borderColor: "#495057",
-                backgroundColor: "rgba(73, 80, 87, 0.08)",
-              },
-              "&:hover": {
-                backgroundColor: "rgba(73, 80, 87, 0.04)",
-              },
+            "&:hover": {
+              backgroundColor: "rgba(73, 80, 87, 0.04)",
             },
-          }}
-        >
-          <Tabs.List>
-            <Tabs.Tab value="一般">一般 ({counts["一般"]})</Tabs.Tab>
-            <Tabs.Tab value="技術書">技術書 ({counts["技術書"]})</Tabs.Tab>
-          </Tabs.List>
-        </Tabs>
+          },
+        }}
+      >
+        <Tabs.List>
+          <Tabs.Tab value="一般">一般 ({counts["一般"]})</Tabs.Tab>
+          <Tabs.Tab value="技術書">技術書 ({counts["技術書"]})</Tabs.Tab>
+        </Tabs.List>
+      </Tabs>
 
-        {/* 本棚フレーム */}
-        <div
-          style={{
-            border: "6px solid #dee2e6",
-            background: "linear-gradient(180deg, #ffffff 0%, #fafafa 100%)",
-            borderRadius: "12px",
-            boxShadow: "0 2px 12px rgba(0,0,0,0.08), inset 0 0 20px rgba(0,0,0,0.03)",
-          }}
-        >
-          {/* 読書中 / 未読 セクション */}
-          <div
-            style={{
-              fontFamily: "'Noto Sans JP', sans-serif",
-              fontSize: 14,
-              fontWeight: 600,
-              color: "#495057",
-              padding: "12px 24px 0",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
-            <span
-              style={{
-                display: "inline-block",
-                width: 4,
-                height: 18,
-                backgroundColor: "#2196F3",
-                borderRadius: 2,
-              }}
-            />
-            読書中 / 未読
-          </div>
-          <ShelfSection books={activeBooks} onBookClick={setSelectedBook} />
+      {/* 本棚フレーム */}
+      <ContentFrame>
+        <SectionHeader label="読書中 / 未読" color="#2196F3" />
+        <ShelfSection books={activeBooks} onBookClick={setSelectedBook} />
 
-          {/* 読了 セクション */}
-          <div
-            style={{
-              fontFamily: "'Noto Sans JP', sans-serif",
-              fontSize: 14,
-              fontWeight: 600,
-              color: "#495057",
-              padding: "16px 24px 0",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
-            <span
-              style={{
-                display: "inline-block",
-                width: 4,
-                height: 18,
-                backgroundColor: "#4CAF50",
-                borderRadius: 2,
-              }}
-            />
-            読了
-          </div>
-          <ShelfSection books={finishedBooks} onBookClick={setSelectedBook} />
-        </div>
-      </div>
+        <SectionHeader label="読了" color="#4CAF50" paddingTop="16px" />
+        <ShelfSection books={finishedBooks} onBookClick={setSelectedBook} />
+      </ContentFrame>
 
       <BookDetailModal book={selectedBook} onClose={() => setSelectedBook(null)} />
-    </div>
+    </PageLayout>
   );
 }

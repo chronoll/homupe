@@ -24,6 +24,39 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'images.unsplash.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'i.ytimg.com',
+        pathname: '/vi/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'is1-ssl.mzstatic.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'statics.tver.jp',
+      },
+      {
+        protocol: 'https',
+        hostname: 'radiko.jp',
+      },
+      {
+        protocol: 'https',
+        hostname: 'program-static.cf.radiko.jp',
+      },
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'image-cdn-ak.spotifycdn.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'i1.sndcdn.com',
+      },
     ],
   },
 };

@@ -190,6 +190,12 @@ th {
   }
 }
 
+/* VideoCard hover */
+.video-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
 /* アイコン用のレスポンシブ対応 */
 @media (max-width: 600px) {
   .header-icons {

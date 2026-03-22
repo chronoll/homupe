@@ -218,6 +218,80 @@ export async function getBooks(): Promise<Book[]> {
   return books;
 }
 
+export type ContentMedia = "Youtube" | "Podcast" | "PrimeVideo" | "TVer" | "ラジオ" | "Music" | "記事" | "note" | "書籍" | "SpeakerDeck";
+
+export interface ContentEntry {
+  id: string;
+  title: string;
+  url: string | null;
+  imageUrl: string | null;
+  media: ContentMedia;
+  date: string | null;
+  body: string;
+}
+
+/**
+ * 摂取記録DBからコンテンツ一覧を取得（公開のみ）
+ */
+export async function getContents(): Promise<ContentEntry[]> {
+  const databaseId = process.env.NOTION_CONTENTS_DATABASE_ID;
+
+  if (!databaseId) {
+    console.warn('NOTION_CONTENTS_DATABASE_ID not configured, returning empty contents');
+    return [];
+  }
+
+  const response = await notion.databases.query({
+    database_id: databaseId,
+    filter: {
+      property: '公開',
+      checkbox: {
+        equals: true,
+      },
+    },
+    sorts: [
+      {
+        property: '日付',
+        direction: 'descending',
+      },
+    ],
+  });
+
+  const entries = await Promise.all(
+    response.results.map(async (result) => {
+      const page = result as PageObjectResponse;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const properties = page.properties as Record<string, any>;
+
+      const title = properties['タイトル']?.title?.[0]?.plain_text || '';
+      const url = properties['URL']?.url || null;
+      const imageUrl = properties['画像URL']?.url || null;
+      const media = (properties['媒体']?.select?.name || '記事') as ContentMedia;
+      const date = properties['日付']?.date?.start || null;
+
+      let body = '';
+      try {
+        const blocks = await notion.blocks.children.list({ block_id: page.id, page_size: 100 });
+        body = (blocks.results as BlockObjectResponse[])
+          .map((block) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const b = block as any;
+            const richTexts = b[block.type]?.rich_text || [];
+            return richTexts.map((t: { plain_text: string }) => t.plain_text).join('');
+          })
+          .filter(Boolean)
+          .join('\n');
+      } catch {
+        // ignore
+      }
+
+      return { id: page.id, title, url, imageUrl, media, date, body };
+    })
+  );
+
+  return entries;
+}
+
 /**
  * ブロックから最初の画像URLを抽出
  * @param blocks - Notion blocks
