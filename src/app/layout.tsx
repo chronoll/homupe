@@ -6,8 +6,8 @@ import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 
 export const metadata: Metadata = {
-  title: "☆ ようこそ！私のホームページへ ☆",
-  description: "90年代風レトロなホームページです♪",
+  title: "⭐︎クロタカのホームページ⭐︎",
+  description: "黒髙の生活が覗けるちいさなホームページです。",
 };
 
 export default function RootLayout({
