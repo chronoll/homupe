@@ -3,6 +3,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * グローバル CSS 変数 (retro系も含めて他ページから参照されてもよいように残す)
+ * retro 専用のスタイル定義そのものは src/app/retro.css に分離 (rootページ専用)。
+ * /contents 専用のスタイルもこのファイルにあるが、別件として後で分離予定。
+ */
 :root {
   --retro-bg: #ffffe0;
   --retro-text: #000080;
@@ -14,181 +19,17 @@
 }
 
 body {
-  background: var(--retro-bg);
-  background-image:
-    radial-gradient(circle at 20px 20px, #ff69b4 2px, transparent 2px),
-    radial-gradient(circle at 60px 60px, #00ffff 2px, transparent 2px);
-  background-size: 80px 80px;
-  color: var(--retro-text);
-  /* 平成時代によく使われていたフォントスタック */
-  font-family: 'MS UI Gothic', 'MS Gothic', 'Hiragino Kaku Gothic Pro', 'Meiryo', 'Noto Sans JP', sans-serif;
   margin: 0;
-  padding: var(--body-padding);
   min-height: 100vh;
 }
 
-/* 90年代風のボーダーエフェクト */
-.retro-border {
-  border: 3px outset var(--retro-border);
-  background: var(--retro-bg);
-  box-shadow: 2px 2px 4px var(--retro-shadow);
-}
-
-.retro-inset {
-  border: 2px inset var(--retro-border);
-  background: #f0f0f0;
-  padding: 10px;
-}
-
-/* 90年代風のリンクスタイル */
-a {
-  color: var(--retro-link);
-  text-decoration: underline;
-}
-
-a:visited {
-  color: var(--retro-visited);
-}
-
-a:hover {
-  background-color: yellow;
-  text-decoration: none;
-}
-
-/* 90年代風のテーブルスタイル */
-table {
-  border-collapse: separate;
-  border-spacing: 2px;
-  border: 2px outset var(--retro-border);
-  background: var(--retro-bg);
-}
-
-td,
-th {
-  border: 1px inset var(--retro-border);
-  padding: 5px;
-  background: #f0f0f0;
-}
-
-/* 90年代風のボタンスタイル */
-.retro-button {
-  background: var(--retro-border);
-  border: 2px outset var(--retro-border);
-  padding: 5px 15px;
-  font-family: inherit;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-/* 平成時代のフォントスタイル */
-.heisei-title {
-  font-family: 'MS UI Gothic', 'MS Gothic', 'Hiragino Kaku Gothic Pro', 'Meiryo', 'Noto Sans JP', sans-serif;
-  font-weight: bold;
-  letter-spacing: 0.05em;
-}
-
-.heisei-text {
-  font-family: 'MS UI Gothic', 'MS Gothic', 'Hiragino Kaku Gothic Pro', 'Meiryo', 'Noto Sans JP', sans-serif;
-  line-height: 1.6;
-}
-
-.heisei-mono {
-  font-family: 'MS Gothic', 'Courier New', 'Courier Prime', monospace;
-  letter-spacing: 0.1em;
-}
-
-/* 当時よく使われた装飾テキスト */
-.retro-fancy {
-  font-family: 'MS UI Gothic', 'MS Gothic', serif;
-  text-shadow: 1px 1px 2px #808080;
-  font-weight: bold;
-}
-
-.retro-button:hover {
-  background: #e0e0e0;
-}
-
-.retro-button:active {
-  border: 2px inset var(--retro-border);
-}
-
-/* 点滅アニメーション */
-@keyframes blink {
-
-  0%,
-  50% {
-    opacity: 1;
-  }
-
-  51%,
-  100% {
-    opacity: 0;
-  }
-}
-
-.blink {
-  animation: blink 1s infinite;
-}
-
-/* レスポンシブ対応 */
-@media (max-width: 768px) {
-  :root {
-    --body-padding: 10px;
-  }
-
-  body {
-    background-size: 40px 40px;
-  }
-
-  .retro-border {
-    border-width: 2px;
-  }
-}
-
-/* 追加のレスポンシブ対応 */
-@media (max-width: 768px) {
-
-  /* モバイルでグリッドを縦並びに */
-  .mobile-stack {
-    display: block !important;
-  }
-
-  .mobile-stack>* {
-    margin-bottom: 20px;
-  }
-
-  /* テーブルをモバイル対応 */
-  table {
-    font-size: 14px;
-  }
-
-  td,
-  th {
-    padding: 3px;
-  }
+/* /contents 専用 (本来は contents page 配下に分離するのが望ましい) */
+.video-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
 }
 
 @media (max-width: 480px) {
-  :root {
-    --body-padding: 5px;
-  }
-
-  body {
-    font-size: 14px;
-  }
-
-  h1 {
-    font-size: 20px !important;
-  }
-
-  h2 {
-    font-size: 16px !important;
-  }
-
-  h3 {
-    font-size: 14px !important;
-  }
-
   .contents-page-root {
     background: #fff !important;
   }
@@ -209,25 +50,15 @@ th {
   }
 }
 
-/* VideoCard hover */
-.video-card:hover {
-  transform: translateY(-4px) scale(1.02);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+/* レスポンシブ対応 (root ページの padding 調整 — retro.css 側でも参照) */
+@media (max-width: 768px) {
+  :root {
+    --body-padding: 10px;
+  }
 }
 
-/* アイコン用のレスポンシブ対応 */
-@media (max-width: 600px) {
-  .header-icons {
-    flex-direction: column;
-    gap: 10px !important;
-  }
-
-  .profile-layout {
-    flex-direction: column !important;
-    align-items: center !important;
-  }
-
-  .profile-layout .retro-inset {
-    margin-bottom: 15px;
+@media (max-width: 480px) {
+  :root {
+    --body-padding: 5px;
   }
 }

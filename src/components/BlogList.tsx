@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Container, Title, Card, Text, Badge, Group, Stack, Tabs } from '@mantine/core';
 import { IconCalendar } from '@tabler/icons-react';
 import BlogBackground from '@/components/BlogBackground';
@@ -16,7 +16,6 @@ interface BlogListProps {
 }
 
 export default function BlogList({ posts }: BlogListProps) {
-  const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabValue>('all');
 
   const formatDate = (dateString: string) => {
@@ -95,6 +94,9 @@ export default function BlogList({ posts }: BlogListProps) {
             filteredPosts.map((post) => (
               <Card
                 key={post.id}
+                component={Link}
+                href={`/blog/${post.id}`}
+                className="no-retro-hover"
                 shadow="xl"
                 padding="lg"
                 radius="md"
@@ -105,8 +107,10 @@ export default function BlogList({ posts }: BlogListProps) {
                   backdropFilter: 'blur(10px)',
                   border: '1px solid rgba(255, 255, 255, 0.2)',
                   transition: 'all 0.3s ease',
+                  textDecoration: 'none',
+                  color: 'inherit',
+                  display: 'block',
                 }}
-                onClick={() => router.push(`/blog/${post.id}`)}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = 'translateY(-4px)';
                   e.currentTarget.style.boxShadow = '0 20px 40px rgba(0, 0, 0, 0.2)';

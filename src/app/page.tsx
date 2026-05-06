@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import VisitorCounter from "@/components/VisitorCounter";
 import BBSBoard from "@/components/BBSBoard";
+import "./retro.css";
 
 /**
  * ホームページ（Cache Components対応）
@@ -11,6 +12,7 @@ import BBSBoard from "@/components/BBSBoard";
  */
 export default function Home() {
   return (
+    <div className="retro-page">
     <div style={{ maxWidth: '800px', margin: '0 auto' }}>
       {/* ヘッダー */}
       <div className="retro-border" style={{ marginBottom: '20px', padding: '15px', textAlign: 'center' }}>
@@ -259,6 +261,7 @@ export default function Home() {
           © 2025 chronoll. All rights reserved.
         </p>
       </div>
+    </div>
     </div>
   );
 }
