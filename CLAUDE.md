@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-90年代レトロデザインのホームページ。ブログ（Notion連携）、タスク管理（Redis永続化）、掲示板、訪問者カウンターなどの機能を持つ。
+90年代レトロデザインのホームページ。ブログ（Notion連携）、本棚、コンテンツ一覧、掲示板、訪問者カウンターなどの機能を持つ。
 
 - **Framework**: Next.js 16 (App Router) + TypeScript (strict)
 - **UI**: Tailwind CSS v4 + Mantine UI + レトロ風カスタムCSS
-- **Data**: Redis (タスク/カテゴリー/タイマー/訪問者数), Notion API (ブログ), ローカルJSON (掲示板)
+- **Data**: Redis (訪問者数), Notion API (ブログ・本棚), ローカルJSON (掲示板)
 - **Deploy**: Vercel
 
 ## Commands
@@ -18,7 +18,6 @@ npm run dev          # 開発サーバー（Turbopack）
 npm run build        # 本番ビルド
 npm run lint         # ESLint + TypeScript チェック
 npm test             # Jest テスト全実行
-npm test -- TaskCard.test.tsx  # 単一テスト実行
 ```
 
 PR前: `npm run lint && npm test`
@@ -28,13 +27,11 @@ PR前: `npm run lint && npm test`
 ```
 src/
 ├── app/           # App Router: pages, layouts, API routes (api/**/route.ts)
-├── components/    # UIコンポーネント（テストは __tests__/ 配下）
+├── components/    # UIコンポーネント
 └── lib/
-    ├── types.ts           # 型定義集約（Task, Category, Timer, BlogPost）
-    ├── notion.ts          # Notion API統合（ブログ取得、ISR対応）
-    ├── redis.ts           # Redis接続
-    ├── utils.ts           # バリデーション、フォーマット
-    └── repositories/      # データ永続化層（taskRepository, categoryRepository, timerRepository）
+    ├── types.ts           # 型定義集約（Book, YouTubeVideo 等）
+    ├── notion.ts          # Notion API統合（ブログ・本棚取得、ISR対応）
+    └── redis.ts           # Redis接続
 data/              # ローカルJSON永続化（BBS投稿, 訪問者数）
 ```
 
@@ -44,7 +41,6 @@ data/              # ローカルJSON永続化（BBS投稿, 訪問者数）
 - **ISR**: ブログページは`revalidate: 900`（15分）で再検証
 - **Suspense**でストリーミング対応（VisitorCounter, BBSBoard等）
 - **React Compiler**有効（`reactCompiler: true`）で自動メモ化
-- **リポジトリパターン**: `src/lib/repositories/`でRedisアクセスを抽象化
 - **Notion Block Renderer**: `NotionBlockRenderer.tsx`でNotionブロックを再帰的にレンダリング
 
 ## Coding Style
@@ -58,9 +54,9 @@ data/              # ローカルJSON永続化（BBS投稿, 訪問者数）
 
 `.env.local`に設定（`.env.local.example`参照）:
 - `REDIS_URL` - Redis接続URL
-- `TASKS_PASSWORD` - タスク管理の認証パスワード
 - `NOTION_API_KEY` - Notion APIキー
 - `NOTION_DATABASE_ID` - NotionデータベースID
+- `NOTION_BOOKS_DATABASE_ID` - Notion本棚DBのID
 
 ## Testing
 

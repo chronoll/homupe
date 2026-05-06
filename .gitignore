@@ -48,3 +48,6 @@ next-env.d.ts
 
 # Screenshots
 *-screenshot.png
+contents-*.png
+
+.playwright-cli/

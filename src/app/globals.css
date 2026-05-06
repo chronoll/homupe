@@ -188,6 +188,25 @@ th {
   h3 {
     font-size: 14px !important;
   }
+
+  .contents-page-root {
+    background: #fff !important;
+  }
+
+  .contents-page-inner {
+    padding: 0 !important;
+  }
+
+  .contents-page-wrapper {
+    margin: 0 !important;
+  }
+
+  .contents-frame {
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: #fff !important;
+  }
 }
 
 /* VideoCard hover */

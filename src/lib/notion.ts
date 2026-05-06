@@ -1,6 +1,7 @@
 import { Client } from '@notionhq/client';
 import { PageObjectResponse, BlockObjectResponse } from '@notionhq/client/build/src/api-endpoints';
 import type { Book, BookStatus, BookCategory } from '@/lib/types';
+import { enrichLinkBlocks } from '@/lib/ogp';
 
 const notion = new Client({
   auth: process.env.NOTION_API_KEY,
@@ -94,9 +95,39 @@ export async function getBlogPosts(): Promise<BlogPost[]> {
   return posts;
 }
 
+export type BlockWithChildren = BlockObjectResponse & {
+  children?: BlockWithChildren[];
+};
+
 export interface BlogPostDetail {
   page: PageObjectResponse;
-  blocks: BlockObjectResponse[];
+  blocks: BlockWithChildren[];
+}
+
+/**
+ * Notion ブロックを再帰的に取得する。
+ * - `has_more` ループで全件取得（ページサイズ上限の100件超に対応）
+ * - `has_children: true` のブロックは子も再帰取得して `block.children` に格納
+ */
+async function fetchBlockChildrenRecursive(blockId: string): Promise<BlockWithChildren[]> {
+  const all: BlockWithChildren[] = [];
+  let cursor: string | undefined;
+  do {
+    const res = await notion.blocks.children.list({
+      block_id: blockId,
+      start_cursor: cursor,
+      page_size: 100,
+    });
+    for (const result of res.results) {
+      const block = result as BlockWithChildren;
+      if (block.has_children) {
+        block.children = await fetchBlockChildrenRecursive(block.id);
+      }
+      all.push(block);
+    }
+    cursor = res.has_more ? res.next_cursor ?? undefined : undefined;
+  } while (cursor);
+  return all;
 }
 
 /**
@@ -105,15 +136,9 @@ export interface BlogPostDetail {
  */
 export async function getBlogPost(id: string): Promise<BlogPostDetail> {
   const page = await notion.pages.retrieve({ page_id: id }) as PageObjectResponse;
-  const blocksResponse = await notion.blocks.children.list({
-    block_id: id,
-    page_size: 100,
-  });
-
-  return {
-    page,
-    blocks: blocksResponse.results as BlockObjectResponse[],
-  };
+  const blocks = await fetchBlockChildrenRecursive(id);
+  await enrichLinkBlocks(blocks);
+  return { page, blocks };
 }
 
 /**
@@ -228,6 +253,7 @@ export interface ContentEntry {
   media: ContentMedia;
   date: string | null;
   body: string;
+  pickup: boolean;
 }
 
 /**
@@ -241,25 +267,27 @@ export async function getContents(): Promise<ContentEntry[]> {
     return [];
   }
 
-  const response = await notion.databases.query({
-    database_id: databaseId,
-    filter: {
-      property: '公開',
-      checkbox: {
-        equals: true,
+  const allResults: PageObjectResponse[] = [];
+  let cursor: string | undefined;
+  do {
+    const res = await notion.databases.query({
+      database_id: databaseId,
+      filter: {
+        property: '公開',
+        checkbox: { equals: true },
       },
-    },
-    sorts: [
-      {
-        property: '日付',
-        direction: 'descending',
-      },
-    ],
-  });
+      sorts: [
+        { property: '日付', direction: 'descending' },
+      ],
+      page_size: 100,
+      start_cursor: cursor,
+    });
+    allResults.push(...(res.results as PageObjectResponse[]));
+    cursor = res.has_more ? res.next_cursor ?? undefined : undefined;
+  } while (cursor);
 
   const entries = await Promise.all(
-    response.results.map(async (result) => {
-      const page = result as PageObjectResponse;
+    allResults.map(async (page) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const properties = page.properties as Record<string, any>;
 
@@ -268,6 +296,7 @@ export async function getContents(): Promise<ContentEntry[]> {
       const imageUrl = properties['画像URL']?.url || null;
       const media = (properties['媒体']?.select?.name || '記事') as ContentMedia;
       const date = properties['日付']?.date?.start || null;
+      const pickup = properties['ピックアップ']?.checkbox === true;
 
       let body = '';
       try {
@@ -285,7 +314,7 @@ export async function getContents(): Promise<ContentEntry[]> {
         // ignore
       }
 
-      return { id: page.id, title, url, imageUrl, media, date, body };
+      return { id: page.id, title, url, imageUrl, media, date, body, pickup };
     })
   );
 
