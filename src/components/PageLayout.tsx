@@ -2,11 +2,14 @@ interface PageLayoutProps {
   title: string;
   maxWidth?: number;
   children: React.ReactNode;
+  className?: string;
+  innerClassName?: string;
 }
 
-export function PageLayout({ title, maxWidth = 800, children }: PageLayoutProps) {
+export function PageLayout({ title, maxWidth = 800, children, className, innerClassName }: PageLayoutProps) {
   return (
     <div
+      className={className}
       style={{
         minHeight: "100vh",
         background: "linear-gradient(180deg, #f8f9fa 0%, #f0f1f3 100%)",
@@ -14,7 +17,7 @@ export function PageLayout({ title, maxWidth = 800, children }: PageLayoutProps)
         margin: "calc(-1 * var(--body-padding))",
       }}
     >
-      <div style={{ maxWidth, margin: "0 auto", padding: "0 16px" }}>
+      <div className={innerClassName} style={{ maxWidth, margin: "0 auto", padding: "0 16px" }}>
         <h1
           style={{
             textAlign: "center",
@@ -36,11 +39,13 @@ export function PageLayout({ title, maxWidth = 800, children }: PageLayoutProps)
 
 interface ContentFrameProps {
   children: React.ReactNode;
+  className?: string;
 }
 
-export function ContentFrame({ children }: ContentFrameProps) {
+export function ContentFrame({ children, className }: ContentFrameProps) {
   return (
     <div
+      className={className}
       style={{
         border: "6px solid #dee2e6",
         background: "linear-gradient(180deg, #ffffff 0%, #fafafa 100%)",

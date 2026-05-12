@@ -1,0 +1,184 @@
+/*
+ * 90年代レトロ風スタイル (root ページ専用)
+ * `.retro-page` を最上位に当てた DOM ツリー内でだけ適用される。
+ * このスコープ内では <body> 風の背景・リンク色・テーブル枠などが
+ * 90年代風に上書きされる。他のページ (/blog, /contents 等) には影響しない。
+ */
+
+.retro-page {
+  background: var(--retro-bg);
+  background-image:
+    radial-gradient(circle at 20px 20px, #ff69b4 2px, transparent 2px),
+    radial-gradient(circle at 60px 60px, #00ffff 2px, transparent 2px);
+  background-size: 80px 80px;
+  color: var(--retro-text);
+  font-family: 'MS UI Gothic', 'MS Gothic', 'Hiragino Kaku Gothic Pro', 'Meiryo', 'Noto Sans JP', sans-serif;
+  padding: var(--body-padding);
+  min-height: 100vh;
+}
+
+/* 90年代風のボーダーエフェクト */
+.retro-page .retro-border {
+  border: 3px outset var(--retro-border);
+  background: var(--retro-bg);
+  box-shadow: 2px 2px 4px var(--retro-shadow);
+}
+
+.retro-page .retro-inset {
+  border: 2px inset var(--retro-border);
+  background: #f0f0f0;
+  padding: 10px;
+}
+
+/* 90年代風のリンクスタイル */
+.retro-page a {
+  color: var(--retro-link);
+  text-decoration: underline;
+}
+
+.retro-page a:visited {
+  color: var(--retro-visited);
+}
+
+.retro-page a:hover {
+  background-color: yellow;
+  text-decoration: none;
+}
+
+/* 90年代風のテーブルスタイル */
+.retro-page table {
+  border-collapse: separate;
+  border-spacing: 2px;
+  border: 2px outset var(--retro-border);
+  background: var(--retro-bg);
+}
+
+.retro-page td,
+.retro-page th {
+  border: 1px inset var(--retro-border);
+  padding: 5px;
+  background: #f0f0f0;
+}
+
+/* 90年代風のボタンスタイル */
+.retro-page .retro-button {
+  background: var(--retro-border);
+  border: 2px outset var(--retro-border);
+  padding: 5px 15px;
+  font-family: inherit;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.retro-page .retro-button:hover {
+  background: #e0e0e0;
+}
+
+.retro-page .retro-button:active {
+  border: 2px inset var(--retro-border);
+}
+
+/* 平成時代のフォントスタイル */
+.heisei-title {
+  font-family: 'MS UI Gothic', 'MS Gothic', 'Hiragino Kaku Gothic Pro', 'Meiryo', 'Noto Sans JP', sans-serif;
+  font-weight: bold;
+  letter-spacing: 0.05em;
+}
+
+.heisei-text {
+  font-family: 'MS UI Gothic', 'MS Gothic', 'Hiragino Kaku Gothic Pro', 'Meiryo', 'Noto Sans JP', sans-serif;
+  line-height: 1.6;
+}
+
+.heisei-mono {
+  font-family: 'MS Gothic', 'Courier New', 'Courier Prime', monospace;
+  letter-spacing: 0.1em;
+}
+
+/* 当時よく使われた装飾テキスト */
+.retro-fancy {
+  font-family: 'MS UI Gothic', 'MS Gothic', serif;
+  text-shadow: 1px 1px 2px #808080;
+  font-weight: bold;
+}
+
+/* 点滅アニメーション */
+@keyframes blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.blink {
+  animation: blink 1s infinite;
+}
+
+/* レスポンシブ対応 (retro レイアウト固有) */
+@media (max-width: 768px) {
+  .retro-page {
+    background-size: 40px 40px;
+  }
+
+  .retro-page .retro-border {
+    border-width: 2px;
+  }
+
+  /* モバイルでグリッドを縦並びに */
+  .mobile-stack {
+    display: block !important;
+  }
+
+  .mobile-stack > * {
+    margin-bottom: 20px;
+  }
+
+  /* テーブルをモバイル対応 */
+  .retro-page table {
+    font-size: 14px;
+  }
+
+  .retro-page td,
+  .retro-page th {
+    padding: 3px;
+  }
+}
+
+@media (max-width: 480px) {
+  .retro-page {
+    font-size: 14px;
+  }
+
+  .retro-page h1 {
+    font-size: 20px !important;
+  }
+
+  .retro-page h2 {
+    font-size: 16px !important;
+  }
+
+  .retro-page h3 {
+    font-size: 14px !important;
+  }
+}
+
+/* アイコン用のレスポンシブ対応 (root のヘッダー / プロフィール領域) */
+@media (max-width: 600px) {
+  .header-icons {
+    flex-direction: column;
+    gap: 10px !important;
+  }
+
+  .profile-layout {
+    flex-direction: column !important;
+    align-items: center !important;
+  }
+
+  .profile-layout .retro-inset {
+    margin-bottom: 15px;
+  }
+}

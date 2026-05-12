@@ -19,21 +19,21 @@ export default function NotFound() {
             </Text>
           </Stack>
 
-          <Button
-            component={Link}
-            href="/blog"
-            leftSection={<IconArrowLeft size={16} />}
-            size="lg"
-            variant="light"
-            c="white"
-            style={{
-              background: 'rgba(255, 255, 255, 0.1)',
-              backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-            }}
-          >
-            ブログ一覧に戻る
-          </Button>
+          <Link href="/blog" style={{ textDecoration: 'none' }}>
+            <Button
+              leftSection={<IconArrowLeft size={16} />}
+              size="lg"
+              variant="light"
+              c="white"
+              style={{
+                background: 'rgba(255, 255, 255, 0.1)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+              }}
+            >
+              ブログ一覧に戻る
+            </Button>
+          </Link>
         </Stack>
       </Container>
     </BlogBackground>

@@ -34,21 +34,20 @@ export default function BlogDetail({ post, relatedArticles }: BlogDetailProps) {
   return (
     <BlogBackground>
       <Container size="md" py="xl">
-        <Button 
-          component={Link} 
-          href="/blog" 
-          variant="light" 
-          leftSection={<IconArrowLeft size={16} />}
-          mb="xl"
-          c="white"
-          style={{
-            background: 'rgba(255, 255, 255, 0.1)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-          }}
-        >
-          ブログ一覧に戻る
-        </Button>
+        <Link href="/blog" style={{ textDecoration: 'none', display: 'inline-block', marginBottom: '1.5rem' }}>
+          <Button
+            variant="light"
+            leftSection={<IconArrowLeft size={16} />}
+            c="white"
+            style={{
+              background: 'rgba(255, 255, 255, 0.1)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+            }}
+          >
+            ブログ一覧に戻る
+          </Button>
+        </Link>
 
         <Box 
           mb="xl"

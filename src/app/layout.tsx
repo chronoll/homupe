@@ -4,6 +4,7 @@ import '@mantine/core/styles.css';
 import { ColorSchemeScript, MantineProvider } from '@mantine/core';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
+import NavigationProgress from "@/components/NavigationProgress";
 
 export const metadata: Metadata = {
   title: "☆ ようこそ！私のホームページへ ☆",
@@ -21,6 +22,7 @@ export default function RootLayout({
       </head>
       <body>
         <MantineProvider defaultColorScheme="light">{children}</MantineProvider>
+        <NavigationProgress />
         <Analytics />
         <SpeedInsights />
       </body>

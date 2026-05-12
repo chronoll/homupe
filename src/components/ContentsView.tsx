@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Modal, Button } from "@mantine/core";
 import { IconExternalLink } from "@tabler/icons-react";
 import type { ContentEntry, ContentMedia } from "@/lib/notion";
@@ -44,8 +45,8 @@ function formatWeekLabel(weekStart: string): string {
   const start = new Date(weekStart + "T00:00:00");
   const end = new Date(start);
   end.setDate(end.getDate() + 6);
-  const fmt = (d: Date) => `${d.getMonth() + 1}/${d.getDate()}`;
-  return `${start.getFullYear()}年 ${fmt(start)} 〜 ${fmt(end)}`;
+  const md = (d: Date) => `${d.getMonth() + 1}.${d.getDate()}`;
+  return `${start.getFullYear()}.${md(start)} ~ ${md(end)}`;
 }
 
 function MediaBadge({ media, size = "sm" }: { media: ContentMedia; size?: "sm" | "md" }) {
@@ -64,6 +65,101 @@ function MediaBadge({ media, size = "sm" }: { media: ContentMedia; size?: "sm" |
     >
       {MEDIA_LABELS[media] ?? media}
     </span>
+  );
+}
+
+function PickupCard({ item, onClick }: { item: ContentEntry; onClick: () => void }) {
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        display: "block",
+        width: "clamp(280px, 80vw, 380px)",
+        flexShrink: 0,
+        cursor: "pointer",
+      }}
+    >
+      <div
+        className="video-card"
+        style={{
+          borderRadius: 12,
+          overflow: "hidden",
+          backgroundColor: "#fff",
+          boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+          transition: "transform 0.2s ease, box-shadow 0.2s ease",
+          position: "relative",
+        }}
+      >
+        {item.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={item.imageUrl}
+            alt={item.title}
+            style={{
+              display: "block",
+              width: "100%",
+              aspectRatio: "16 / 9",
+              objectFit: "cover",
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              width: "100%",
+              aspectRatio: "16 / 9",
+              backgroundColor: "#e9ecef",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <span style={{ fontSize: 32, color: "#adb5bd" }}>🎬</span>
+          </div>
+        )}
+        <span
+          style={{
+            position: "absolute",
+            top: 10,
+            left: 10,
+            fontSize: "10px",
+            fontWeight: 700,
+            letterSpacing: "0.08em",
+            color: "#fff",
+            backgroundColor: "#ff6b35",
+            borderRadius: 4,
+            padding: "2px 8px",
+            textTransform: "uppercase",
+          }}
+        >
+          Pickup
+        </span>
+        <div style={{ padding: "10px 14px 12px" }}>
+          <p
+            style={{
+              margin: 0,
+              fontSize: "14px",
+              fontWeight: 700,
+              fontFamily: "'Noto Sans JP', sans-serif",
+              color: "#2d3436",
+              lineHeight: 1.4,
+              height: "calc(14px * 1.4 * 2)",
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+            }}
+          >
+            {item.title}
+          </p>
+          <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 6 }}>
+            <MediaBadge media={item.media} size="md" />
+            {item.date && (
+              <span style={{ fontSize: "11px", color: "#868e96" }}>{item.date}</span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -236,18 +332,38 @@ function ContentDetailModal({
 
 interface ContentsViewProps {
   entries: ContentEntry[];
+  currentPage?: number;
+  totalPages?: number;
 }
 
-export default function ContentsView({ entries }: ContentsViewProps) {
+export default function ContentsView({
+  entries,
+  currentPage = 1,
+  totalPages = 1,
+}: ContentsViewProps) {
   const [selected, setSelected] = useState<ContentEntry | null>(null);
 
-  // 週単位でグループ化
+  const sortByDateDesc = (a: ContentEntry, b: ContentEntry) => {
+    if (!a.date && !b.date) return 0;
+    if (!a.date) return 1;
+    if (!b.date) return -1;
+    return b.date.localeCompare(a.date);
+  };
+
+  const isFirstPage = currentPage === 1;
+  const pickups = entries.filter((e) => e.pickup).sort(sortByDateDesc);
+  const others = entries.filter((e) => !e.pickup);
+
+  // 週単位でグループ化（ピックアップ以外）
   const grouped = new Map<string, ContentEntry[]>();
-  for (const entry of entries) {
+  for (const entry of others) {
     const key = entry.date ? getWeekStart(entry.date) : "undated";
     const list = grouped.get(key) || [];
     list.push(entry);
     grouped.set(key, list);
+  }
+  for (const list of grouped.values()) {
+    list.sort(sortByDateDesc);
   }
 
   const sections = [...grouped.entries()].sort((a, b) => {
@@ -256,16 +372,60 @@ export default function ContentsView({ entries }: ContentsViewProps) {
     return b[0].localeCompare(a[0]);
   });
 
+  const pageNum = currentPage;
+
   return (
     <>
-      {sections.map(([weekKey, items]) => {
+      {pickups.length > 0 && (
+        <div>
+          <SectionHeader label="ピックアップ" color="#ff6b35" />
+          <div style={{ overflowX: "auto" }}>
+            <div
+              style={{
+                display: "flex",
+                gap: "16px",
+                width: "max-content",
+                padding: "12px clamp(8px, 3vw, 24px) 20px",
+              }}
+            >
+              {pickups.map((item) => (
+                <PickupCard
+                  key={item.id}
+                  item={item}
+                  onClick={() => setSelected(item)}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+      {sections.map(([weekKey, items], idx) => {
         const label =
           weekKey === "undated" ? "日付なし" : formatWeekLabel(weekKey);
+        const isLatest = idx === 0 && weekKey !== "undated" && isFirstPage;
         return (
           <div key={weekKey}>
             <SectionHeader label={label} color="#495057" />
-            <div style={{ padding: "12px 24px 16px", overflowX: "auto" }}>
-              <div style={{ display: "flex", gap: "12px" }}>
+            <div style={{ overflowX: isLatest ? "visible" : "auto" }}>
+              <div
+                style={
+                  isLatest
+                    ? {
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fill, 192px)",
+                        gap: "12px",
+                        justifyContent: "center",
+                        padding: "12px clamp(8px, 3vw, 24px) 16px",
+                      }
+                    : {
+                        display: "flex",
+                        gap: "12px",
+                        flexWrap: "nowrap",
+                        width: "max-content",
+                        padding: "12px clamp(8px, 3vw, 24px) 16px",
+                      }
+                }
+              >
                 {items.map((item) => (
                   <ContentCard
                     key={item.id}
@@ -278,7 +438,7 @@ export default function ContentsView({ entries }: ContentsViewProps) {
           </div>
         );
       })}
-      {sections.length === 0 && (
+      {sections.length === 0 && pickups.length === 0 && (
         <div style={{ padding: "24px", textAlign: "center" }}>
           <p
             style={{
@@ -289,6 +449,43 @@ export default function ContentsView({ entries }: ContentsViewProps) {
           >
             コンテンツがありません
           </p>
+        </div>
+      )}
+      {totalPages > 1 && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: 24,
+            padding: "24px 16px 32px",
+            fontFamily: "'Noto Sans JP', sans-serif",
+            fontSize: 14,
+          }}
+        >
+          {pageNum > 1 ? (
+            <Link
+              href={pageNum - 1 === 1 ? "/contents" : `/contents?page=${pageNum - 1}`}
+              style={{ color: "#495057", textDecoration: "none", fontWeight: 600 }}
+            >
+              ← 前へ
+            </Link>
+          ) : (
+            <span style={{ color: "#ced4da", fontWeight: 600 }}>← 前へ</span>
+          )}
+          <span style={{ color: "#495057" }}>
+            {pageNum} / {totalPages}
+          </span>
+          {pageNum < totalPages ? (
+            <Link
+              href={`/contents?page=${pageNum + 1}`}
+              style={{ color: "#495057", textDecoration: "none", fontWeight: 600 }}
+            >
+              次へ →
+            </Link>
+          ) : (
+            <span style={{ color: "#ced4da", fontWeight: 600 }}>次へ →</span>
+          )}
         </div>
       )}
       <ContentDetailModal item={selected} onClose={() => setSelected(null)} />
