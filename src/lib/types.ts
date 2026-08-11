@@ -21,3 +21,16 @@ export interface Book {
   url: string | null;
   coverImageUrl: string | null;
 }
+
+export interface Recipe {
+  id: string;
+  title: string;
+  lead: string;
+  description: string;
+  imageUrl: string;
+  url: string;
+  cookingTime: string | null;
+  cookingCost: string | null;
+  calorie: string | null;
+  category: string | null;
+}

@@ -194,6 +194,7 @@ export default function Home() {
             </h3>
             <div style={{ fontSize: '14px', lineHeight: '1.8' }}>
               <p><Link href="/blog">→ blog</Link></p>
+              <p><Link href="/recipes">→ recipes</Link></p>
 
               <p><a href="https://x.com/chronoll" target="_blank" rel="noopener noreferrer">→ X</a></p>
               <p><a href="https://www.instagram.com/chronoll" target="_blank" rel="noopener noreferrer">→ Instagram</a></p>
