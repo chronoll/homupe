@@ -1,0 +1,90 @@
+.page {
+  min-height: 100vh;
+  background: #f7f4ee;
+  color: #292722;
+  padding: 40px 20px 80px;
+}
+
+.content {
+  width: min(100%, 960px);
+  margin: 0 auto;
+}
+
+.header {
+  margin-bottom: 44px;
+}
+
+.header h1 {
+  margin: 4px 0 12px;
+  font-size: clamp(2rem, 6vw, 3.5rem);
+  letter-spacing: -0.04em;
+}
+
+.header p {
+  margin: 0;
+  color: #706b61;
+}
+
+.header .eyebrow {
+  color: #9a6b4d;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.days {
+  display: grid;
+  gap: 48px;
+}
+
+.day h2 {
+  margin: 0 0 16px;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.photo {
+  overflow: hidden;
+  margin: 0;
+  border-radius: 12px;
+  background: #e7e1d7;
+  aspect-ratio: 1 / 1;
+}
+
+.photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.message {
+  padding: 32px;
+  border: 1px solid #ded7cc;
+  border-radius: 12px;
+  background: #fffdf9;
+  color: #706b61;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding: 28px 12px 56px;
+  }
+
+  .header {
+    margin-bottom: 32px;
+  }
+
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+}
