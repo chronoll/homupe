@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Modal, Button } from "@mantine/core";
 import { IconExternalLink } from "@tabler/icons-react";
+import { getContentWeekStart } from "@/lib/contentDates";
 import type { ContentEntry, ContentMedia } from "@/lib/notion";
 import { SectionHeader } from "@/components/PageLayout";
 
@@ -33,20 +34,12 @@ const MEDIA_LABELS: Record<ContentMedia, string> = {
   書籍: "書籍",
 };
 
-function getWeekStart(dateStr: string): string {
-  const d = new Date(dateStr + "T00:00:00");
-  const day = d.getDay();
-  const diff = day === 0 ? 6 : day - 1;
-  d.setDate(d.getDate() - diff);
-  return d.toISOString().split("T")[0];
-}
-
 function formatWeekLabel(weekStart: string): string {
-  const start = new Date(weekStart + "T00:00:00");
+  const start = new Date(weekStart + "T00:00:00Z");
   const end = new Date(start);
-  end.setDate(end.getDate() + 6);
-  const md = (d: Date) => `${d.getMonth() + 1}.${d.getDate()}`;
-  return `${start.getFullYear()}.${md(start)} ~ ${md(end)}`;
+  end.setUTCDate(end.getUTCDate() + 6);
+  const md = (d: Date) => `${d.getUTCMonth() + 1}.${d.getUTCDate()}`;
+  return `${start.getUTCFullYear()}.${md(start)} ~ ${md(end)}`;
 }
 
 function MediaBadge({ media, size = "sm" }: { media: ContentMedia; size?: "sm" | "md" }) {
@@ -357,7 +350,7 @@ export default function ContentsView({
   // 週単位でグループ化（ピックアップ以外）
   const grouped = new Map<string, ContentEntry[]>();
   for (const entry of others) {
-    const key = entry.date ? getWeekStart(entry.date) : "undated";
+    const key = getContentWeekStart(entry.date);
     const list = grouped.get(key) || [];
     list.push(entry);
     grouped.set(key, list);

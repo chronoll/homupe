@@ -1,5 +1,6 @@
 import { getContents } from "@/lib/notion";
 import { fetchContentMetadata } from "@/lib/metadata";
+import { getContentWeekStart } from "@/lib/contentDates";
 import type { ContentEntry } from "@/lib/notion";
 import { PageLayout, ContentFrame } from "@/components/PageLayout";
 import ContentsView from "@/components/ContentsView";
@@ -7,14 +8,6 @@ import ContentsView from "@/components/ContentsView";
 export const revalidate = 3600;
 
 const WEEKS_PER_PAGE = 4;
-
-function getWeekStart(dateStr: string): string {
-  const d = new Date(dateStr + "T00:00:00");
-  const day = d.getDay();
-  const diff = day === 0 ? 6 : day - 1;
-  d.setDate(d.getDate() - diff);
-  return d.toISOString().split("T")[0];
-}
 
 // YouTubeのURL各パターンからvideo IDを抽出
 function extractYouTubeId(url: string): string | null {
@@ -88,7 +81,7 @@ export default async function ContentsPage({
 
   const grouped = new Map<string, ContentEntry[]>();
   for (const entry of rawOthers) {
-    const key = entry.date ? getWeekStart(entry.date) : "undated";
+    const key = getContentWeekStart(entry.date);
     const list = grouped.get(key) || [];
     list.push(entry);
     grouped.set(key, list);
