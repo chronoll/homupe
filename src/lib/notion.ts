@@ -95,7 +95,15 @@ export async function getBlogPosts(): Promise<BlogPost[]> {
   return posts;
 }
 
-export type BlockWithChildren = BlockObjectResponse & {
+type Heading3Block = Extract<BlockObjectResponse, { type: 'heading_3' }>;
+
+// Notion returns heading_4 blocks even though the installed SDK does not declare them.
+type Heading4Block = Omit<Heading3Block, 'type' | 'heading_3'> & {
+  type: 'heading_4';
+  heading_4: Heading3Block['heading_3'];
+};
+
+export type BlockWithChildren = (BlockObjectResponse | Heading4Block) & {
   children?: BlockWithChildren[];
 };
 
@@ -326,7 +334,7 @@ export async function getContents(): Promise<ContentEntry[]> {
  * @param blocks - Notion blocks
  * @returns 最初に見つかった画像のURL、なければundefined
  */
-export function extractFirstImageUrl(blocks: BlockObjectResponse[]): string | undefined {
+export function extractFirstImageUrl(blocks: BlockWithChildren[]): string | undefined {
   for (const block of blocks) {
     if (block.type === 'image') {
       const imageUrl = block.image.type === 'external'

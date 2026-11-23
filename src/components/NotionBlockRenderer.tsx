@@ -166,6 +166,16 @@ function BlockRenderer({ block }: { block: BlockWithChildren }) {
         </>
       );
 
+    case 'heading_4':
+      return (
+        <>
+          <Title order={4} mt="md" mb="sm" style={colorToStyle(block.heading_4.color)}>
+            <RichTextRenderer richText={block.heading_4.rich_text} />
+          </Title>
+          {block.heading_4.is_toggleable ? <ChildrenBox block={block} /> : null}
+        </>
+      );
+
     case 'bulleted_list_item':
     case 'numbered_list_item':
       return null;

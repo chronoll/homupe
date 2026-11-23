@@ -6,7 +6,7 @@ import Link from 'next/link';
 import NotionBlockRenderer from '@/components/NotionBlockRenderer';
 import BlogBackground from '@/components/BlogBackground';
 import RelatedArticles from '@/components/RelatedArticles';
-import { BlockObjectResponse } from '@notionhq/client/build/src/api-endpoints';
+import type { BlockWithChildren } from '@/lib/notion';
 import { BlogPost } from '@/lib/notion';
 
 interface BlogDetailProps {
@@ -16,7 +16,7 @@ interface BlogDetailProps {
     tags: string[];
     category: string;
     aiUsed?: boolean;
-    blocks: BlockObjectResponse[];
+    blocks: BlockWithChildren[];
   };
   relatedArticles: BlogPost[];
 }
