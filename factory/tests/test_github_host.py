@@ -26,6 +26,13 @@ def issue():
             "body": "Explain the existing behavior.", "updated_at": CUTOFF}
 
 
+def event_payload(body):
+    payload = body.split("\n", 1)[1]
+    if payload.startswith("<!--\n"):
+        payload = payload[len("<!--\n"):].split("\n-->\n", 1)[0]
+    return json.loads(payload)
+
+
 class FakeGitHub:
     """A write mutates remote JSON first, then can lose its response."""
     def __init__(self):
@@ -264,6 +271,26 @@ class GitHubHostTests(unittest.TestCase):
         self.assertFalse(self.factory.store.stopped())
         self.assert_no_models()
 
+    def test_avatar_url_difference_between_github_endpoints_does_not_reject_command(self):
+        original = self.github.add("/factory stop", comment_id=10)
+        original["user"].update(id=127325184, avatar_url="https://avatars.githubusercontent.com/u/127325184?v=4")
+        self.github.listed_overrides[10] = original
+        self.github.comments[10]["user"].update(id=127325184,
+            avatar_url="https://avatars.githubusercontent.com/u/127325184?u=hash&v=4")
+        self.sync()
+        self.assertTrue(self.factory.store.stopped())
+        self.assertEqual(self.journal()["cursor"]["comments"]["10"]["status"], "done")
+        self.assert_no_models()
+
+    def test_changed_stable_user_id_is_rejected(self):
+        original = self.github.add("/factory stop", comment_id=10)
+        original["user"]["id"] = 127325184
+        self.github.listed_overrides[10] = original
+        self.github.comments[10]["user"]["id"] = 123
+        self.sync()
+        self.assertFalse(self.factory.store.stopped())
+        self.assertEqual(self.journal()["cursor"]["comments"], {})
+
     def test_commands_reject_closed_untrusted_pr_or_unrelated_issue_targets(self):
         self.github.add("/factory stop", comment_id=10)
         variants = [{"state": "closed"}, {"user": {"login": "outsider"}},
@@ -354,7 +381,7 @@ class GitHubHostTests(unittest.TestCase):
         self.sync()
         self.assertEqual(len(self.github.marked(EVENT_MARKER, "chronoll")), 1)
         self.assertEqual([event["sent"] for event in self.journal()["events"].values()], [False])
-        payload = json.loads(self.github.marked(EVENT_MARKER, "chronoll")[0]["body"].split("\n", 1)[1])
+        payload = event_payload(self.github.marked(EVENT_MARKER, "chronoll")[0]["body"])
         ack = self.github.add("<!-- homupe-factory-notify:v1:" + payload["key"] + " -->\nDelivered",
                               author="github-actions[bot]")
         self.github.comments[ack["id"]]["user"]["type"] = "Bot"
@@ -385,7 +412,7 @@ class GitHubHostTests(unittest.TestCase):
         self.factory.store.save(42, "draft-pr", url="https://github.com/chronoll/homupe/pull/77")
         self.control.publish(42)
         event = self.github.marked(EVENT_MARKER, "chronoll")[0]
-        payload = json.loads(event["body"].split("\n", 1)[1])
+        payload = event_payload(event["body"])
         self.assertEqual(set(payload), {"key", "kind", "issue", "status_comment", "pr"})
         self.assertRegex(payload["key"], r"^[0-9a-f]{64}$")
         self.assertEqual((payload["kind"], payload["issue"], payload["pr"]), ("draft-complete", 42, 77))

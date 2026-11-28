@@ -4,6 +4,7 @@ from __future__ import annotations
 import copy
 import json
 from pathlib import Path
+import re
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -12,7 +13,7 @@ from factory.core import Halt, atomic_json, parse_json
 from factory.github_control import claim_command, finish_command
 from factory.github_host import (DELIVERY_INTERVAL, EVENT_MARKER, MAX_DELIVERY_ATTEMPTS,
     NOTIFY_MARKER, RECEIPT_MARKER, GitHubControl)
-from factory.tests.test_github_host import CUTOFF, FakeFactory, FakeGitHub
+from factory.tests.test_github_host import CUTOFF, FakeFactory, FakeGitHub, event_payload
 
 
 class NotificationRecovery(unittest.TestCase):
@@ -179,6 +180,17 @@ class NotificationRecovery(unittest.TestCase):
         self.assertEqual(self.event_count(), 1)
         self.assert_no_models()
 
+    def test_new_event_hides_transport_json_and_leaves_only_a_fixed_status_message(self):
+        event = self.outbox()
+        self.control.flush()
+        body = self.github.marked(EVENT_MARKER, "chronoll")[0]["body"]
+        self.assertTrue(body.startswith(EVENT_MARKER + "\n<!--\n"))
+        self.assertEqual(re.sub(r"<!--.*?-->", "", body, flags=re.DOTALL).strip(),
+                         "Factoryの状態を更新しました。")
+        self.assertEqual(event_payload(body), {key: event[key] for key in
+                         ("key", "kind", "issue", "status_comment", "pr")})
+        self.assert_no_models()
+
     def test_only_exact_bot_marker_acknowledges_notification(self):
         event = self.outbox()
         self.control.flush()
@@ -280,6 +292,9 @@ class NotificationRecovery(unittest.TestCase):
         self.now.return_value += DELIVERY_INTERVAL
         self.control.flush()
         self.assertEqual(self.event_count(), 2)
+        retry = self.github.marked(EVENT_MARKER, "chronoll")[-1]["body"]
+        self.assertTrue(retry.startswith(EVENT_MARKER + "\n<!--\n"))
+        self.assertEqual(event_payload(retry), event_payload(body))
         self.assert_no_models()
 
 
