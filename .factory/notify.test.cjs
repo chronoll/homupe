@@ -18,6 +18,10 @@ function event(kind = "started") {
     pr: kind === "draft-complete" ? 52 : null };
 }
 
+function hiddenBody(data) {
+  return EVENT_PREFIX + "<!--\n" + JSON.stringify(data) + "\n-->\nFactoryの状態を更新しました。";
+}
+
 function context(data = event()) {
   return {
     eventName: "issue_comment", actor: "chronoll",
@@ -63,6 +67,41 @@ test("accepts only the three defined milestone schemas", () => {
   for (const kind of ["started", "needs-human", "draft-complete"]) {
     const data = event(kind);
     assert.deepEqual(validateEvent(context(data)), data);
+  }
+});
+
+test("accepts the hidden envelope for every milestone and dedupes legacy re-delivery", async () => {
+  for (const kind of ["started", "needs-human", "draft-complete"]) {
+    const data = event(kind);
+    const c = context(data);
+    c.payload.comment.body = hiddenBody(data);
+    assert.deepEqual(validateEvent(c), data);
+    const api = client();
+    assert.equal((await notify({ github: api.github, context: c })).status, "delivered");
+    assert.equal((await notify({ github: api.github, context: context(data) })).status, "already-delivered");
+    assert.equal(api.calls.create.length, 1);
+  }
+});
+
+test("rejects malformed hidden envelopes or additional visible text before API access", async () => {
+  const good = hiddenBody(event());
+  const invalid = [
+    good + "\n追加の説明", good + "\n", "説明\n" + good,
+    good.replace("Factoryの状態を更新しました。", "別の任意テキスト"),
+    good.replace("\n-->\n", "\n--!>\n"),
+    good.replace("<!--\n{", "<!--\r\n{"),
+    good.replace("\n-->\n", "\n<!-- extra -->\n-->\n"),
+    EVENT_PREFIX + "<!--\n" + JSON.stringify(event()) + "\n-->\n任意のJSON後テキスト",
+    EVENT_PREFIX + "<!--\n{\"kind\":\"-->visible\","
+      + JSON.stringify(event()).slice(1) + "\n-->\nFactoryの状態を更新しました。",
+  ];
+  for (const body of invalid) {
+    const c = context();
+    c.payload.comment.body = body;
+    const api = client();
+    assert.equal(validateEvent(c), null);
+    assert.deepEqual(await notify({ github: api.github, context: c }), { status: "ignored" });
+    assert.deepEqual(api.calls, { get: [], list: [], create: [] });
   }
 });
 
