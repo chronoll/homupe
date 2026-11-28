@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 
+if (process.env.VERCEL_ENV === "production" && process.env.FACTORY_FIXTURES === "1") {
+  throw new Error("FACTORY_FIXTURES cannot be enabled for a production deployment");
+}
+
 const nextConfig: NextConfig = {
+  // Keep local fixture builds separate from the normal production build.
+  distDir: process.env.FACTORY_FIXTURES === "1" ? ".next-fixtures" : ".next",
   // React Compiler: 自動メモ化で再レンダリングを削減
   reactCompiler: true,
 

@@ -4,15 +4,8 @@ import { Suspense, useEffect, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import PageLoading from "./PageLoading";
 
-function NavigationProgressInner() {
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+function NavigationProgressTracker() {
   const [pending, setPending] = useState(false);
-
-  // 遷移完了 (URL 変更後の re-render) で消す
-  useEffect(() => {
-    setPending(false);
-  }, [pathname, searchParams]);
 
   // <a> クリックを capture phase で拾って遷移開始を検知
   useEffect(() => {
@@ -45,6 +38,13 @@ function NavigationProgressInner() {
   }, []);
 
   return pending ? <PageLoading /> : null;
+}
+
+function NavigationProgressInner() {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  // A completed navigation remounts the tracker with an idle state.
+  return <NavigationProgressTracker key={`${pathname}?${searchParams.toString()}`} />;
 }
 
 export default function NavigationProgress() {

@@ -1,11 +1,13 @@
+import { isFactoryFixtureMode, getFixtureBlogPosts, getFixtureBlogPost, getFixtureRelatedArticles, getFixtureBooks, getFixtureContents } from "./factory-fixtures";
 import { Client } from '@notionhq/client';
 import { PageObjectResponse, BlockObjectResponse } from '@notionhq/client/build/src/api-endpoints';
 import type { Book, BookStatus, BookCategory } from '@/lib/types';
 import { enrichLinkBlocks } from '@/lib/ogp';
 
-const notion = new Client({
-  auth: process.env.NOTION_API_KEY,
-});
+let notion: Client | undefined;
+function getNotion(): Client {
+  return notion ??= new Client({ auth: process.env.NOTION_API_KEY });
+}
 
 export interface BlogPost {
   id: string;
@@ -21,6 +23,7 @@ export interface BlogPost {
  * Next.js自動キャッシュにより、fetchリクエストは自動的にキャッシュされます
  */
 export async function getBlogPosts(): Promise<BlogPost[]> {
+  if (isFactoryFixtureMode()) return getFixtureBlogPosts();
   const databaseId = process.env.NOTION_DATABASE_ID;
 
   if (!databaseId) {
@@ -30,7 +33,7 @@ export async function getBlogPosts(): Promise<BlogPost[]> {
 
   const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD形式
 
-  const response = await notion.databases.query({
+  const response = await getNotion().databases.query({
     database_id: databaseId,
     filter: {
       and: [
@@ -121,7 +124,7 @@ async function fetchBlockChildrenRecursive(blockId: string): Promise<BlockWithCh
   const all: BlockWithChildren[] = [];
   let cursor: string | undefined;
   do {
-    const res = await notion.blocks.children.list({
+    const res = await getNotion().blocks.children.list({
       block_id: blockId,
       start_cursor: cursor,
       page_size: 100,
@@ -143,7 +146,8 @@ async function fetchBlockChildrenRecursive(blockId: string): Promise<BlockWithCh
  * @param id - Notion Page ID
  */
 export async function getBlogPost(id: string): Promise<BlogPostDetail> {
-  const page = await notion.pages.retrieve({ page_id: id }) as PageObjectResponse;
+  if (isFactoryFixtureMode()) return getFixtureBlogPost(id);
+  const page = await getNotion().pages.retrieve({ page_id: id }) as PageObjectResponse;
   const blocks = await fetchBlockChildrenRecursive(id);
   await enrichLinkBlocks(blocks);
   return { page, blocks };
@@ -154,8 +158,9 @@ export async function getBlogPost(id: string): Promise<BlogPostDetail> {
  * @param pageId - Notion Page ID
  */
 export async function getRelatedArticles(pageId: string): Promise<BlogPost[]> {
+  if (isFactoryFixtureMode()) return getFixtureRelatedArticles(pageId);
   try {
-    const page = await notion.pages.retrieve({ page_id: pageId }) as PageObjectResponse;
+    const page = await getNotion().pages.retrieve({ page_id: pageId }) as PageObjectResponse;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const properties = page.properties as Record<string, any>;
 
@@ -168,7 +173,7 @@ export async function getRelatedArticles(pageId: string): Promise<BlogPost[]> {
 
     const relatedPages = await Promise.all(
       relatedIds.map(async (id: string) => {
-        const relatedPage = await notion.pages.retrieve({ page_id: id }) as PageObjectResponse;
+        const relatedPage = await getNotion().pages.retrieve({ page_id: id }) as PageObjectResponse;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const props = relatedPage.properties as Record<string, any>;
 
@@ -194,6 +199,7 @@ export async function getRelatedArticles(pageId: string): Promise<BlogPost[]> {
  * 本棚データを取得
  */
 export async function getBooks(): Promise<Book[]> {
+  if (isFactoryFixtureMode()) return getFixtureBooks();
   const databaseId = process.env.NOTION_BOOKS_DATABASE_ID;
 
   if (!databaseId) {
@@ -201,7 +207,7 @@ export async function getBooks(): Promise<Book[]> {
     return [];
   }
 
-  const response = await notion.databases.query({
+  const response = await getNotion().databases.query({
     database_id: databaseId,
     sorts: [
       {
@@ -268,6 +274,7 @@ export interface ContentEntry {
  * 摂取記録DBからコンテンツ一覧を取得（公開のみ）
  */
 export async function getContents(): Promise<ContentEntry[]> {
+  if (isFactoryFixtureMode()) return getFixtureContents();
   const databaseId = process.env.NOTION_CONTENTS_DATABASE_ID;
 
   if (!databaseId) {
@@ -278,7 +285,7 @@ export async function getContents(): Promise<ContentEntry[]> {
   const allResults: PageObjectResponse[] = [];
   let cursor: string | undefined;
   do {
-    const res = await notion.databases.query({
+    const res = await getNotion().databases.query({
       database_id: databaseId,
       filter: {
         property: '公開',
@@ -308,7 +315,7 @@ export async function getContents(): Promise<ContentEntry[]> {
 
       let body = '';
       try {
-        const blocks = await notion.blocks.children.list({ block_id: page.id, page_size: 100 });
+        const blocks = await getNotion().blocks.children.list({ block_id: page.id, page_size: 100 });
         body = (blocks.results as BlockObjectResponse[])
           .map((block) => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any

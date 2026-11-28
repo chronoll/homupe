@@ -417,7 +417,6 @@ function BlockRenderer({ block }: { block: BlockWithChildren }) {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function LinkPreviewCard({
   url,
   metadata,

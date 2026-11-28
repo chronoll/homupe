@@ -13,10 +13,14 @@ Keep feature logic close to its route/component, and extract shared utilities in
 - `npm run dev`: Start local development server with Turbopack.
 - `npm run build`: Create production build.
 - `npm run start`: Run built app in production mode.
-- `npm run lint`: Run Next.js + TypeScript ESLint checks.
+- `npm run lint`: Run ESLint with zero warnings.
+- `npm run typecheck`: Generate Next.js route types and run TypeScript.
 - `npm test`: Run Jest test suite.
+- `npm run check`: Run lint, types, and Jest in CI mode.
+- `npm run build:fixtures && npm run test:e2e`: Build isolated fixture data and run desktop/mobile browser acceptance.
 
-Typical local flow: `npm run lint && npm test` before opening a PR.
+Run `npm run check` and the relevant build/browser checks before opening a PR.
+See `docs/factory-verification.md` for Node.js 22 setup, fixture boundaries, and exact-commit Preview verification.
 
 ## Coding Style & Naming Conventions
 - Language: TypeScript (`strict: true`), React function components, Next.js App Router conventions.

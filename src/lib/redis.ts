@@ -1,9 +1,11 @@
 
 import Redis, { ChainableCommander } from 'ioredis';
+import { isFactoryFixtureMode } from './factory-fixtures';
 
 let redis: Redis;
 
 const getRedisInstance = (): Redis => {
+    if (isFactoryFixtureMode()) throw new Error('Redis client is disabled in fixture mode');
   if (!redis) {
     try {
       const redisUrl = process.env.REDIS_URL;
@@ -36,6 +38,7 @@ export const getClient = (): Redis => {
 // --- Basic CRUD Helpers ---
 
 export const setJson = async (key: string, value: object, pipeline?: ChainableCommander): Promise<void> => {
+  if (isFactoryFixtureMode()) throw new Error('Redis writes are disabled in fixture mode');
   const client = pipeline || getClient();
   await client.set(key, JSON.stringify(value));
 };
@@ -50,6 +53,7 @@ export const getJson = async <T>(key: string): Promise<T | null> => {
 };
 
 export const del = async (key: string, pipeline?: ChainableCommander): Promise<void> => {
+  if (isFactoryFixtureMode()) throw new Error('Redis writes are disabled in fixture mode');
   const client = pipeline || getClient();
   await client.del(key);
 };

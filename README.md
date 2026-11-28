@@ -1,5 +1,8 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+Use Node.js 22. Credential-free checks, fixture data, browser acceptance and the
+Vercel Preview workflow are documented in [Factory verification](docs/factory-verification.md).
+
 ## Getting Started
 
 First, run the development server:

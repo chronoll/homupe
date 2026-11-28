@@ -1,8 +1,12 @@
+import { isFactoryFixtureMode } from "@/lib/factory-fixtures";
 import { NextResponse } from 'next/server';
 import { createClient } from 'redis';
 
 export async function GET() {
     try {
+        if (isFactoryFixtureMode()) {
+            return NextResponse.json({ success: false, error: "Redis diagnostics are disabled in fixture mode" }, { status: 403 });
+        }
         if (!process.env.REDIS_URL) {
             return NextResponse.json({
                 success: false,
