@@ -172,11 +172,21 @@ one-shot poll processes at most one eligible Issue and then exits. A running job
 does not overlap another poll and has a one-hour deadline; checks may therefore
 be farther apart than five minutes. Local state does not coordinate multiple PCs.
 
+Before installing on macOS, place an independent clone of the verified revision
+and the dedicated runtime under `~/Library/Application Support/homupe`, outside
+Documents and other TCC-protected folders. A worktree elsewhere is insufficient
+if its Git metadata still points back into Documents. Keep `COLIMA_HOME` short,
+for example the runtime's `c` directory, to fit the Unix socket path limit. Use
+that runtime's environment configuration when building or operating its VM.
+
 Install the watcher with the dedicated runtime directory, then explicitly start
-it from the repository root. The runtime path below is an example:
+it from that independent repository root. The paths below are examples:
 
 ```sh
-python3 -B -m factory.launchd --runtime /path/to/homupe-runtime install
+factory_runtime="$HOME/Library/Application Support/homupe"
+. "$factory_runtime/env.sh"
+cd "$factory_runtime/repo"
+python3 -B -m factory.launchd --runtime "$factory_runtime" install
 python3 -B -m factory.launchd start
 python3 -B -m factory.launchd status
 python3 -B -m factory.launchd stop
