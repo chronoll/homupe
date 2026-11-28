@@ -20,8 +20,9 @@ not claim a job. Without `--issue-file`, it reads the real Issue through `gh`.
 Offline tests use temporary Git repositories, fake agent/GitHub boundaries and a
 fake Docker executable. They cover the draft-PR path, failures, source/commit
 identity, stop/timeout cleanup, strict JSON, claims and publication uncertainty.
-They do not prove a real container or subscription login works. An image build
-and a subscription-backed trial remain required.
+They do not prove a real container or subscription login works. CI separately
+builds the Linux image and checks its boundaries and application verification,
+without model calls. A local image build and subscription-backed trial remain required.
 
 ## Runtime and cost
 

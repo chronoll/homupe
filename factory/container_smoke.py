@@ -25,7 +25,10 @@ assert not pathlib.Path('/var/run/docker.sock').exists()
 assert not pathlib.Path('/home/node/.config/gh').exists()
 assert not any(os.environ.get(k) for k in ['OPENAI_API_KEY','CODEX_API_KEY','ANTHROPIC_API_KEY'])
 assert os.environ['GH_TOKEN']=='factory-disabled'
-for path in ['/workspace/README.md','/etc/factory-probe']:
+pathlib.Path('/tmp/factory-probe').write_text('ephemeral writes work')
+# Both paths belong to the mapped runtime user; permissions alone would allow
+# writes, so failures prove the read-only bind/root rather than Unix ownership.
+for path in ['/workspace/README.md','/opt/browsers/factory-probe']:
  try:
   pathlib.Path(path).write_text('must fail')
  except OSError:

@@ -430,6 +430,11 @@ class StateAndProcessTests(unittest.TestCase):
         output = Runner().run([sys.executable, "-c", "import sys; print('{}'); print('progress',file=sys.stderr)"])
         self.assertEqual(parse_json(output), {})
 
+    def test_output_cap_also_applies_after_a_fast_process_exits(self):
+        with patch("factory.core.MAX_OUTPUT", 1024):
+            with self.assertRaisesRegex(Halt, "output exceeds"):
+                Runner().run([sys.executable, "-c", "print('x'*2048)"])
+
     def test_files_reject_symlinks_and_hardlinks(self):
         original = self.root / "original"
         original.write_text("source")
@@ -444,6 +449,17 @@ class StateAndProcessTests(unittest.TestCase):
 
 
 class ContractTests(unittest.TestCase):
+    def test_cleanup_failure_sets_stop_even_if_docker_cli_disappears(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            runner = Runner(Store(root / "state"))
+            runtime = DockerRuntime(parse_json((SOURCE / ".factory/config.json").read_bytes()), runner)
+            with patch.object(runner, "run", return_value="{}"):
+                with patch.object(Runner, "run", side_effect=OSError("Docker disappeared")):
+                    with self.assertRaisesRegex(Halt, "cleanup failed"):
+                        runtime.call(root, ["true"])
+            self.assertTrue(runner.store.stopped())
+
     def test_strict_json_rejects_ambiguous_or_oversized_outputs(self):
         for raw in ('{"a":1,"a":2}', '{"a":NaN}', "{} {}", "```json\n{}\n```", "x" * (1024 * 1024 + 1)):
             with self.subTest(raw=raw[:30]), self.assertRaises(Halt):

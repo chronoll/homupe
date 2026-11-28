@@ -58,7 +58,7 @@ class DockerRuntime:
             # uses a fresh supervisor so STOP cannot prevent container removal.
             try:
                 Runner().run(["docker", "rm", "-f", name], timeout=30)
-            except Halt:
+            except (Halt, OSError):
                 if self.runner.store:
                     self.runner.store.root.mkdir(parents=True, exist_ok=True)
                     (self.runner.store.root / "STOP").touch()

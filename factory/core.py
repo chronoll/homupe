@@ -21,6 +21,7 @@ class Halt(RuntimeError):
 
 
 MAX_JSON = 1024 * 1024
+MAX_OUTPUT = 32 * 1024 * 1024
 SHA = re.compile(r"^[0-9a-f]{40}$")
 IGNORED = {"node_modules", ".next", ".next-fixtures", "test-results",
            "playwright-report", "coverage", "__pycache__"}
@@ -151,13 +152,15 @@ class Runner:
                         self.store.check_stop()
                     if time.monotonic() >= deadline:
                         raise Halt("command timed out: " + str(argv[0]))
-                    if os.fstat(output.fileno()).st_size + os.fstat(errors.fileno()).st_size > 32 * 1024 * 1024:
+                    if os.fstat(output.fileno()).st_size + os.fstat(errors.fileno()).st_size > MAX_OUTPUT:
                         raise Halt("command output exceeds 32 MiB")
                     time.sleep(0.05)
                 output.seek(0)
-                data = output.read()
+                data = output.read(MAX_OUTPUT + 1)
                 errors.seek(0)
-                diagnostics = errors.read()
+                diagnostics = errors.read(MAX_OUTPUT + 1)
+                if len(data) + len(diagnostics) > MAX_OUTPUT:
+                    raise Halt("command output exceeds 32 MiB")
                 if log:
                     Path(log).write_bytes(data + b"\n--- stderr ---\n" + diagnostics)
                 if process.returncode:
@@ -183,8 +186,8 @@ class Runner:
                 if log:
                     output.seek(0)
                     errors.seek(0)
-                    Path(log).write_bytes(output.read(32 * 1024 * 1024) +
-                                          b"\n--- stderr ---\n" + errors.read(32 * 1024 * 1024))
+                    Path(log).write_bytes(output.read(MAX_OUTPUT) +
+                                          b"\n--- stderr ---\n" + errors.read(MAX_OUTPUT))
 
 
 def clean_env():
