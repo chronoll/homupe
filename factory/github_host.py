@@ -13,7 +13,7 @@ import time
 import uuid
 
 from factory.core import Halt, Runner, atomic_json, git, parse_json
-from factory.github_control import (STATUS_MARKER, claim_command, finish_command,
+from factory.github_control import (STATUS_MARKER, claim_command, command_record, finish_command,
     new_cursor, safe_text, status_body, validate_cursor)
 
 EVENT_MARKER = "<!-- homupe-factory-event:v1 -->"
@@ -245,7 +245,9 @@ class GitHubControl:
                 continue
             # A current read rejects edits that happened after the list response.
             current = self.github.get("issues/comments/" + str(candidate["id"]))
-            if any(current.get(k) != candidate.get(k) for k in ("id", "body", "user", "created_at", "updated_at", "issue_url")):
+            if (any(current.get(k) != candidate.get(k) for k in ("id", "body", "created_at", "updated_at", "issue_url"))
+                    or current.get("user", {}).get("id") != candidate.get("user", {}).get("id")
+                    or command_record(current, number, self.factory.config["trusted_author"]) != record):
                 continue
             try:
                 self._issue(number)
@@ -362,7 +364,9 @@ class GitHubControl:
                     or (event["kind"] != "draft-complete" and event.get("pr") is not None)):
                 raise Halt("invalid GitHub notification outbox")
             payload = {k: event[k] for k in ("key", "kind", "issue", "status_comment", "pr")}
-            body = EVENT_MARKER + "\n" + json.dumps(payload, separators=(",", ":"))
+            encoded = json.dumps(payload, separators=(",", ":"))
+            legacy_body = EVENT_MARKER + "\n" + encoded
+            body = EVENT_MARKER + "\n<!--\n" + encoded + "\n-->\nFactoryの状態を更新しました。"
             comments = self._comments(event["issue"])
             marker = NOTIFY_MARKER + event["key"] + " -->\n"
             if any(x.get("user", {}).get("login") == "github-actions[bot]"
@@ -375,7 +379,7 @@ class GitHubControl:
             # Reconcile legacy submitted events without treating a host comment
             # as proof that the workflow or its notification succeeded.
             if "attempts" not in event:
-                submitted = any(self._ours(x) and x.get("body") == body for x in comments)
+                submitted = any(self._ours(x) and x.get("body") in {body, legacy_body} for x in comments)
                 event["attempts"] = 1 if submitted else 0
                 event["submitted_at"] = time.time() if submitted else None
             attempts, submitted_at = event["attempts"], event.get("submitted_at")
