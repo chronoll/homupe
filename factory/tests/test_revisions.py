@@ -10,7 +10,8 @@ from unittest.mock import Mock, patch
 
 from factory.core import Halt, Store, atomic_json, parse_json
 from factory.github_host import GitHubControl
-from factory.revisions import HELP_MARKER, RECEIPT_MARKER, Revisions, instruction
+from factory.revisions import (HELP_MARKER, RECEIPT_MARKER, Revisions,
+                               RevisionQueueStopped, instruction)
 
 
 NOW = "2026-11-28T13:01:00Z"
@@ -65,13 +66,18 @@ class FakeGitHub:
         return copy.deepcopy(self.original_issue)
 
     def pages(self, path):
-        assert path == "issues/33/comments?per_page=100"
-        return [copy.deepcopy(x) for x in self.comments.values()]
+        if path.startswith("issues/comments?since="):
+            return [copy.deepcopy(x) for x in self.comments.values()]
+        assert path in {"issues/33/comments?per_page=100", "issues/35/comments?per_page=100"}
+        number = path.split("/")[1]
+        return [copy.deepcopy(x) for x in self.comments.values()
+                if x["issue_url"].endswith("/" + number)]
 
     def write(self, path, value, method="POST"):
-        assert path == "issues/33/comments" and method == "POST"
+        assert path in {"issues/33/comments", "issues/35/comments"} and method == "POST"
         self.writes.append((path, copy.deepcopy(value), method))
         result = comment(value["body"], self.next_id)
+        result["issue_url"] = PR_API.rsplit("/", 1)[0] + "/" + path.split("/")[1]
         self.next_id += 1
         return self.add(result)
 
@@ -112,6 +118,15 @@ class RevisionTests(unittest.TestCase):
     def marked(self, marker, author="chronoll"):
         return [x for x in self.github.comments.values()
                 if x["user"]["login"] == author and x["body"].startswith(marker)]
+
+    def controls(self):
+        self.factory.config = {"trusted_author": "chronoll", "repository": "chronoll/homupe"}
+        self.factory._interrupted_jobs = Mock(return_value=[])
+        self.factory.revisions = self.revisions
+        control = GitHubControl(self.factory, self.github)
+        data = control._load()
+        control._write({**data, "installed_at": CUTOFF})
+        return control
 
     def test_instruction_accepts_only_trusted_unedited_whole_body_fix_requests(self):
         self.assertEqual(instruction(comment()), "Use a concise title.")
@@ -228,7 +243,6 @@ class RevisionTests(unittest.TestCase):
         job = self.store.job(35)
         atomic_json(job / "revision.json", revision())
         self.store.save(35, "needs-human", head_sha="c" * 40)
-        self.store.stop()
         self.github.pr["head"]["sha"] = "b" * 40
         listed = self.github.add(comment("/factory fix\nUse the updated PR as the starting point."))
         self.sync([listed])
@@ -239,6 +253,58 @@ class RevisionTests(unittest.TestCase):
         archive = next((self.store.root / "jobs").glob("35.attempt-*"))
         self.assertEqual(parse_json((archive / "revision.json").read_bytes())["head_sha"], HEAD)
         self.assertEqual(parse_json((archive / "state.json").read_bytes())["head_sha"], "c" * 40)
+        self.assertEqual(self.factory.runtime.mock_calls, [])
+
+    def test_earlier_fix_cannot_clear_a_later_stop_in_the_same_tick(self):
+        control = self.controls()
+        self.github.add(comment(comment_id=100))
+        stop = comment("/factory stop", comment_id=101)
+        stop["issue_url"] = PR_API.rsplit("/", 1)[0] + "/35"
+        self.github.add(stop)
+        with self.store.lock(), patch.object(control, "publish"):
+            control.commands()
+        self.assertTrue(self.store.stopped())
+        self.assertEqual(self.journal()["commands"]["100"]["status"], "failed")
+        receipt = self.marked(RECEIPT_MARKER + "100 -->")
+        self.assertEqual(len(receipt), 1)
+        self.assertIn("/factory resume", receipt[0]["body"])
+        self.assertIn("35", receipt[0]["body"])
+        self.assertEqual(control._load()["cursor"]["comments"]["101"]["status"], "done")
+        self.assertEqual(parse_json((self.store.job(35) / "state.json").read_bytes())["phase"], "draft-pr")
+        self.assertEqual(list((self.store.root / "jobs").glob("35.attempt-*")), [])
+        self.assertEqual(self.factory.runtime.mock_calls, [])
+
+    def test_stopped_fix_requires_explicit_resume_then_a_new_fix_comment(self):
+        control = self.controls()
+        self.store.stop()
+        self.github.add(comment(comment_id=100))
+        with self.store.lock(), patch.object(control, "publish"):
+            control.commands()
+        self.assertTrue(self.store.stopped())
+        self.assertEqual(self.journal()["commands"]["100"]["status"], "failed")
+        self.assertIn("/factory resume", self.marked(RECEIPT_MARKER + "100 -->")[0]["body"])
+        self.assertEqual(list((self.store.root / "jobs").glob("35.attempt-*")), [])
+
+        resume = comment("/factory resume", comment_id=101)
+        resume["issue_url"] = PR_API.rsplit("/", 1)[0] + "/35"
+        self.github.add(resume)
+        with self.store.lock(), patch.object(control, "publish"):
+            control.commands()
+        self.assertFalse(self.store.stopped())
+        self.assertEqual(self.journal()["commands"]["100"]["status"], "failed")
+        self.assertEqual(list((self.store.root / "jobs").glob("35.attempt-*")), [])
+
+        self.github.add(comment("/factory fix\nStart this newly requested revision.", comment_id=102))
+        with self.store.lock(), patch.object(control, "publish"):
+            control.commands()
+        self.assertFalse(self.store.stopped())
+        self.assertEqual(self.journal()["commands"]["100"]["status"], "failed")
+        self.assertEqual(self.journal()["commands"]["102"]["status"], "done")
+        queued = parse_json((self.store.job(35) / "revision.json").read_bytes())
+        self.assertEqual((queued["comment_id"], queued["instructions"]),
+                         (102, "Start this newly requested revision."))
+        self.assertEqual(len(list((self.store.root / "jobs").glob("35.attempt-*"))), 1)
+        self.assertEqual(len(self.marked(RECEIPT_MARKER + "100 -->")), 1)
         self.assertEqual(self.factory.runtime.mock_calls, [])
 
     def test_retry_cannot_accept_a_changed_remote_head_without_a_new_fix_instruction(self):
@@ -422,6 +488,49 @@ class RevisionTests(unittest.TestCase):
             self.revisions.queue(revision())
         self.assertTrue(self.store.stopped())
         self.assertEqual(parse_json((self.store.job(35) / "state.json").read_bytes())["phase"], "revision-queued")
+
+    def test_new_stop_during_validation_rejects_fresh_fix_and_is_preserved_by_retry(self):
+        for fresh_request, previous_stop in ((True, False), (False, False), (False, True)):
+            with self.subTest(fresh_request=fresh_request, previous_stop=previous_stop):
+                root = self.root / ("validate-stop-%s-%s" % (fresh_request, previous_stop))
+                factory = FakeFactory(root)
+                github = FakeGitHub()
+                revisions = Revisions(factory, github)
+                store = factory.store
+                store.claim(35, github.issue(35))
+                phase = "draft-pr" if fresh_request else "needs-human"
+                store.save(35, phase, url=PR_URL, branch="factory/issue-35", head_sha=HEAD)
+                if not fresh_request:
+                    atomic_json(store.job(35) / "revision.json", revision())
+                if previous_stop:
+                    store.stop()
+                validate = revisions.validate
+                stops = []
+                def stop_during_validation(request, issue=None):
+                    result = validate(request, issue)
+                    store.stop()
+                    stop = store.root / "STOP"
+                    stamp = stop.stat().st_mtime_ns + 1_000_000
+                    os.utime(stop, ns=(stamp, stamp))
+                    stops.append(stamp)
+                    return result
+                with store.lock(), patch.object(revisions, "validate", side_effect=stop_during_validation):
+                    if fresh_request:
+                        with self.assertRaises(RevisionQueueStopped):
+                            revisions.queue(revision(), fresh_request=True)
+                    else:
+                        self.assertEqual(revisions.retry(35)["phase"], "revision-queued")
+                self.assertEqual(len(stops), 1)
+                self.assertTrue(store.stopped())
+                self.assertEqual((store.root / "STOP").stat().st_mtime_ns, stops[0])
+                state = parse_json((store.job(35) / "state.json").read_bytes())
+                self.assertEqual(state["phase"], "draft-pr" if fresh_request else "revision-queued")
+                self.assertEqual(len(list((store.root / "jobs").glob("35.attempt-*"))),
+                                 0 if fresh_request else 1)
+                self.assertEqual(list(store.root.glob(".revision-stop-*")), [])
+                self.assertEqual(list((store.root / "revision-intents").glob("*.json")), [])
+                self.assertEqual(factory.runtime.mock_calls, [])
+                self.assertEqual(github.writes, [])
 
     def test_issue_retry_preserves_a_new_stop_after_revision_queue_recovery(self):
         self.factory.config = {"trusted_author": "chronoll"}

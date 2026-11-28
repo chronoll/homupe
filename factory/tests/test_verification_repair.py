@@ -192,6 +192,10 @@ class VerificationFailureTypeTests(unittest.TestCase):
                     (["npm", "run", "check"], CommandFailure("docker", 125), "Error Docker startup\n"),
                     (["npm", "run", "check"], CommandFailure("docker", 126), "Error command unavailable\n"),
                     (["npm", "run", "check"], CommandFailure("docker", 127), "Error command missing\n"),
+                    (["npm", "run", "check"], CommandFailure("docker", 137), "Killed\n"),
+                    (["npm", "run", "check"], CommandFailure("docker", 143), "Terminated\n"),
+                    (["npm", "run", "check"], CommandFailure("docker", -9), "Killed\n"),
+                    (["npm", "run", "check"], CommandFailure("docker", 1), "Error ENOMEM\n"),
                     (["npm", "run", "check"], CommandFailure("docker", 1), "error ENOTFOUND registry.example\n")]
         for command, original, log in variants:
             with self.subTest(command=command, original=str(original), log=log):

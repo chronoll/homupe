@@ -229,9 +229,12 @@ class DockerRuntime:
                     summary = summary[:599].rstrip("\\") + "…"
                 command = labels.get(tuple(argv), "verification step " + str(index + 1))
                 infrastructure = re.search(r"cannot connect to.*docker|docker daemon|permission denied|"
-                    r"ENOTFOUND|ETIMEDOUT|ECONNREFUSED|no space left|unauthorized|authentication required",
+                    r"ENOTFOUND|ETIMEDOUT|ECONNREFUSED|ENOMEM|EAGAIN|out of memory|OOMKilled|"
+                    r"no space left|unauthorized|authentication required",
                     tail, re.IGNORECASE)
-                if (isinstance(error, CommandFailure) and error.returncode not in {125, 126, 127}
+                if isinstance(error, CommandFailure) and (error.returncode not in range(1, 125) or infrastructure):
+                    raise Halt("runtime unavailable during verification: " + command + " | " + summary) from error
+                if (isinstance(error, CommandFailure)
                         and tuple(argv) in labels and tuple(argv) != ("npm", "ci")
                         and not infrastructure):
                     raise VerificationFailure(command, summary or "検証コマンドが失敗しました。") from error

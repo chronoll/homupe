@@ -90,6 +90,10 @@ does not queue a revision. The original Issue must remain open, and the open PR
 must still be the factory-owned branch targeting this repository's staging.
 Each accepted comment ID is durably claimed once. The receipt says when it is
 queued; `revision-queued` means no user action is needed while it waits.
+PR revision requests never clear an existing global STOP. A request made while
+stopped is refused: post `/factory resume` on the original Issue, wait for its
+acceptance, then post a **new** `/factory fix` request on the PR. The refused
+comment is not replayed automatically.
 
 The new attempt starts from the recorded PR head integrated with the current
 staging, preserving unmerged PR changes. It freezes the current Issue and the

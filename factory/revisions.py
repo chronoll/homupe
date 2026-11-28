@@ -2,15 +2,21 @@
 from __future__ import annotations
 
 import hashlib
+import os
 from pathlib import Path
 import re
 import time
+import tempfile
 from datetime import datetime
 
 from factory.core import Halt, Runner, SHA, atomic_json, git, parse_json
 
 HELP_MARKER = '<!-- homupe-factory-revision-help:v1 -->'
 RECEIPT_MARKER = '<!-- homupe-factory-revision-receipt:v1:'
+
+
+class RevisionQueueStopped(Halt):
+    """A PR fix never overrides an existing global stop request."""
 
 
 def instruction(comment, trusted='chronoll'):
@@ -131,6 +137,13 @@ class Revisions:
             path.unlink()
 
     def queue(self, revision, fresh_request=False):
+        stop = self.store.root / 'STOP'
+        try:
+            previous_stop = stop.stat().st_mtime_ns
+        except FileNotFoundError:
+            previous_stop = None
+        if fresh_request and previous_stop is not None:
+            raise RevisionQueueStopped('PR修正指示ではキューのSTOPを解除しません。')
         pr, issue = self.validate(revision)
         number = revision['issue']
         job = self.store.job(number)
@@ -148,12 +161,26 @@ class Revisions:
         if frozen != revision['head_sha'] and not fresh_request:
             raise Halt('PRのheadが記録と一致しません。現在のPR変更を確認してください。')
         archive = job.with_name(str(number) + '.attempt-' + str(time.time_ns()))
-        self.store.stop()
+        # Link a pre-stamped temporary sentinel exclusively: never touch over a
+        # STOP that arrived during the GitHub reads. A concurrent emergency stop
+        # after the link changes its known mtime and is retained by recovery.
+        fd, name = tempfile.mkstemp(prefix='.revision-stop-', dir=self.store.root)
+        try:
+            owned_stop = os.fstat(fd).st_mtime_ns
+            try:
+                os.link(name, stop)
+            except FileExistsError:
+                if fresh_request:
+                    raise RevisionQueueStopped('PR修正指示ではキューのSTOPを解除しません。')
+                owned_stop = previous_stop
+        finally:
+            os.close(fd)
+            Path(name).unlink(missing_ok=True)
         intent = self.store.root / 'revision-intents' / (str(number) + '.json')
         atomic_json(intent, {'issue': number, 'archive': archive.name,
             'comment_id': revision['comment_id'],
             'pr': revision['pr'], 'head_sha': revision['head_sha'],
-            'stop_mtime_ns': (self.store.root / 'STOP').stat().st_mtime_ns})
+            'stop_mtime_ns': owned_stop})
         try:
             job.rename(archive)
             job.mkdir(mode=0o700)
@@ -227,6 +254,8 @@ class Revisions:
                 # verified and reviewed; a retry keeps its old frozen head.
                 self.queue(revision, fresh_request=True)
                 record.update(status='done', message='修正指示を受け付けました。現在のPRを引き継いで修正・検証・レビューし、同じPRを更新します。今の操作は不要です。')
+            except RevisionQueueStopped:
+                record.update(status='failed', message='監視キューがSTOP中のため、この修正指示は開始しませんでした。停止を続ける場合は操作不要です。再開する場合は元のIssue #%s に新しいコメントで /factory resume を送り、受付返信を確認してから、このPRに新しい /factory fix と修正内容を送ってください。このコメントは再実行しません。' % revision['issue'])
             except (Halt, OSError, KeyError, ValueError):
                 record.update(status='failed', message='修正指示を開始できませんでした。PRが処理中、更新済み、または元のIssueが停止しています。Issueの状態を確認し、処理完了後に新しい指示を送ってください。')
             atomic_json(self.path, value)
