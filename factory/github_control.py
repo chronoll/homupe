@@ -16,6 +16,8 @@ import unicodedata
 COMMANDS = frozenset({"status", "stop", "retry", "resume"})
 COMMAND_BODIES = {"/factory " + command: command for command in COMMANDS}
 STATUS_MARKER = "<!-- homupe-factory-status:v1 -->"
+ACTION_MARKER_PREFIX = "<!-- homupe-factory-action:v1:"
+NEXT_ACTIONS = frozenset({"wait", "answer", "retry", "maintenance", "review"})
 MAX_STATUS_CHARS = 6000
 MAX_FINDINGS = 8
 _TICK = chr(96)
@@ -26,6 +28,9 @@ _PHASES = {
     "implementing": "実装中", "verifying": "検証中", "reviewing": "レビュー中",
     "publishing": "PR 公開処理中", "draft-pr": "Draft PR 作成済み",
     "needs-human": "人の確認待ち", "incomplete-claim": "受付記録の確認待ち",
+    "repairing": "検証エラーを自動修正中", "auto-repairing": "検証エラーを自動修正中",
+    "repairing-verification": "検証エラーを自動修正中",
+    "revision-queued": "PR の修正依頼を受付済み・順番待ち",
 }
 
 
@@ -172,14 +177,14 @@ def action_requirements(command, state=None):
     }
 
 
-def safe_text(value, limit=600):
-    """Bound public text, redact credentials/local paths, and escape Markdown.
+def safe_plain_text(value, limit=600):
+    """Bound selected public text and redact credentials/local paths.
 
     Select only intended fields before calling this helper. Never publish raw
     JSON, process output or arbitrary state: unknown secret formats cannot be
     reliably identified from a free-form transcript.
     """
-    if not isinstance(value, str):
+    if not isinstance(value, str) or limit < 1:
         return ""
     text = re.sub(r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|$))", "", value)
     text = "".join(char for char in text if not unicodedata.category(char).startswith("C")
@@ -206,8 +211,13 @@ def safe_text(value, limit=600):
     text = " ".join(text.split()).replace("@", "＠")
     if len(text) > limit:
         text = text[:max(0, limit - 1)] + "…"
+    return text
+
+
+def safe_text(value, limit=600):
+    """Escape selected, redacted text so it cannot inject public Markdown."""
     # No free-form field may create a fence, link, HTML tag, heading or mention.
-    return re.sub(r"([\\\x60*_~\[\]<>#])", r"\\\1", text)
+    return re.sub(r"([\\\x60*_~\[\]<>#])", r"\\\1", safe_plain_text(value, limit))
 
 
 def _location(finding):
@@ -222,20 +232,73 @@ def _location(finding):
     return path + (":" + str(line) if _positive(line) else "")
 
 
-def _command_help():
-    entries = [
-        ("状態を確認", "status"),
-        ("監視キュー全体の停止を要求（次の制御確認点で停止）", "stop"),
-        ("この Issue を明示的に再試行（サブスク利用枠を消費）", "retry"),
-        ("監視キュー全体を再開（失敗したジョブは保留のまま）", "resume"),
-    ]
-    lines = ["各枠の中の 1 行だけを、新しいコメント本文として送ってください。引用や説明を付けないでください。",
-             "制御コメントは待機中は約 5 分ごと、実行中は約 30 秒ごとに確認します。stop は即時強制終了ではありません。"]
-    for label, command in entries:
-        lines.extend(["", label + ":", _FENCE, "/factory " + command, _FENCE])
-    lines.extend(["", "retry は既存 PR・ブランチや公開結果を照合してから、この Issue の停止した試行を保存して新しい試行へ進みます。"
-                  "現在の Issue 本文を使い、復旧可能な STOP を解除します。",
-                  "resume はキューの STOP を解除します。人の確認待ちのジョブを自動再試行しません。"])
+def _display_outcome(state, review):
+    """Prefer explicit metadata; classify old held records without changing them."""
+    phase = state.get("phase", "unstarted")
+    if phase == "draft-pr":
+        return {**state, "next_action": "review"}
+    if isinstance(phase, str) and phase in _PHASES and phase not in {"needs-human", "incomplete-claim"}:
+        return {**state, "next_action": "wait"}
+    action = state.get("next_action")
+    if not isinstance(action, str) or action not in NEXT_ACTIONS:
+        # Local import avoids a module cycle: outcomes uses the redactor above.
+        from factory.outcomes import classify_failure
+        selected = classify_failure(state.get("reason", ""), {**state, "review": review})
+        state = {**state, **selected}
+    human = state.get("human_message")
+    if state.get("next_action") == "answer" and (not isinstance(human, str) or not human.strip()):
+        return {**state, "next_action": "maintenance",
+                "human_message": "具体的な確認事項を取得できていません。実行担当に質問内容の確認を依頼してください。"}
+    return state
+
+
+def _next_steps(state):
+    """One relevant action, never an undifferentiated list of control commands."""
+    action, phase = state["next_action"], state.get("phase")
+    phase = phase if isinstance(phase, str) else ""
+    human = safe_text(state.get("human_message"), 600)
+    command = None
+    if action == "wait":
+        lines = ["あなたの操作: 不要"]
+        if phase in {"repairing", "auto-repairing", "repairing-verification"}:
+            lines.append("次の操作: 検証エラーを自動修正中。あなたの操作不要です。結果をお待ちください。")
+        elif phase == "unstarted" and (state.get("stopped") is True or state.get("queue_stopped") is True):
+            lines.append("次の操作: 停止したままなら操作不要です。キューの再開を希望する場合だけ、下の 1 行を送ってください。保留中の試行は再実行しません。")
+            command = "resume"
+        else:
+            lines.append("次の操作: ファクトリーが処理を進めます。結果をお待ちください。")
+    elif action == "answer":
+        lines = ["あなたの操作: 必要", "確認事項: " + human,
+                 "次の操作: この質問への回答を Issue 本文に追記し、その後で下の 1 行を送ってください。通常の返信だけでは再開しません。"]
+        if state.get("revision") is True:
+            lines.append("この修正試行は既存 PR を引き継ぎ、同じ PR を更新します。")
+        command = "retry"
+    elif action == "retry":
+        stopped = state.get("halt_kind") == "stopped"
+        lines = ["あなたの操作: " + ("不要（停止を続ける場合）" if stopped else "必要（続行を希望する場合）")]
+        if human:
+            lines.append("確認事項: " + human)
+        remote_help = ("この修正試行は既存 PR を引き継ぎ、同じ PR を更新します。" if state.get("revision") is True
+                       else "既存 PR・ブランチがある場合は再試行を受け付けません。")
+        lines.append("次の操作: この Issue を試行し直す場合だけ、下の 1 行を送ってください。追加のサブスク利用枠を消費します。" + remote_help)
+        command = "retry"
+    elif action == "review":
+        lines = ["あなたの操作: 必要", "次の操作: Draft PR の差分・GitHub CI・対応する Preview を確認してください。"
+                 "問題なければ Ready for review にし、人が staging へマージします。main への反映・本番公開は別途判断します。"
+                 "修正を依頼する場合は、この PR に新しいトップレベルコメントとして次の形式で送ってください。",
+                 "", _FENCE, "/factory fix", "具体的な修正内容", _FENCE,
+                 "chronoll の新しい未編集コメントを受け付け、同じ PR へ修正します。通常の返信・インラインコメント・レビューだけでは再修正しません。"
+                 "検証とレビューに成功した後も PR は Draft に戻します。"]
+    else:
+        lines = ["あなたの操作: 必要（実行担当による復旧）"]
+        if human:
+            lines.append("確認事項: " + human)
+        lines.append("次の操作: 実行担当にこの Issue の理由を伝えて復旧を依頼してください。"
+                     "仕様への回答や、原因未確認の再試行では進めません。")
+    if command:
+        lines.extend(["", _FENCE, "/factory " + command, _FENCE,
+                      "chronoll が新しいコメント本文全体として、この 1 行だけを送ってください。編集済み・引用・説明付きのコメントは受け付けません。",
+                      "制御確認は待機中約 5 分、実行中約 30 秒が目安です。即時反映は保証しません。"])
     return "\n".join(lines)
 
 
@@ -245,21 +308,31 @@ def status_body(number, state, review=None):
         raise ValueError("invalid Issue number")
     state = state if isinstance(state, dict) else {}
     review = review if isinstance(review, dict) else {}
+    state = _display_outcome(state, review)
     phase = state.get("phase", "unstarted")
     phase_label = _PHASES.get(phase, "状態の確認が必要") if isinstance(phase, str) else "状態の確認が必要"
-    lines = [STATUS_MARKER, "Factory: Issue #" + str(number), "",
+    if phase == "needs-human":
+        halt_kind = state.get("halt_kind") if isinstance(state.get("halt_kind"), str) else ""
+        phase_label = {"technical": "技術エラーで保留", "question": "回答待ち",
+            "input": "Issue の変更により保留", "stopped": "停止中",
+            "runtime": "実行環境の復旧待ち", "auth": "認証・利用枠の確認待ち",
+            "publication": "PR 公開結果の照合待ち", "policy": "保護条件の確認待ち",
+            "unknown": "実行担当による原因の確認待ち"}.get(halt_kind, phase_label)
+    lines = [STATUS_MARKER, ACTION_MARKER_PREFIX + state["next_action"] + " -->",
+             "Factory: Issue #" + str(number), "",
              "状態: " + phase_label]
     if state.get("stopped") is True or state.get("queue_stopped") is True:
         lines.append("監視キュー: STOP（停止中）")
+    # Put the human action before potentially long review evidence, and retain
+    # that action even when selected diagnostics reach the display limit.
+    header = "\n".join(lines) + "\n\n" + _next_steps(state)
+    lines = []
     kind = safe_text(state.get("halt_kind"), 80)
     if kind:
         lines.append("停止区分: " + kind)
     reason = safe_text(state.get("reason"), 600)
     if reason:
         lines.extend(["", "理由: " + reason])
-    human = safe_text(state.get("human_message"), 600)
-    if human:
-        lines.extend(["", "確認事項: " + human])
     url = state.get("url")
     if isinstance(url, str) and re.fullmatch(r"https://github\.com/chronoll/homupe/pull/[1-9][0-9]*", url):
         lines.extend(["", "Draft PR: " + url])
@@ -282,9 +355,8 @@ def status_body(number, state, review=None):
             lines.append("- " + severity + " " + _TICK + location + _TICK + ": " + message)
         if len(items) > MAX_FINDINGS:
             lines.append("- ほか " + str(len(items) - MAX_FINDINGS) + " 件（表示省略）")
-    help_text = _command_help()
-    prefix = "\n".join(lines)
-    budget = MAX_STATUS_CHARS - len(help_text) - 3
-    if len(prefix) > budget:
-        prefix = prefix[:budget - 1] + "…"
-    return prefix + "\n\n" + help_text + "\n"
+    details = "\n".join(lines)
+    budget = MAX_STATUS_CHARS - len(header) - 3
+    if len(details) > budget:
+        details = details[:budget - 1] + "…"
+    return header + "\n\n" + details + "\n"

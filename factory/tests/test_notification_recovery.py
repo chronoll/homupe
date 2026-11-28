@@ -232,7 +232,7 @@ class NotificationRecovery(unittest.TestCase):
         self.restarted().sync()
         self.assertEqual(self.event_count(), before)
         self.assertFalse(self.factory.store.job(42).exists())
-        self.assertTrue(any("人の確認待ち" in c["body"] for c in self.github.comments.values()))
+        self.assertTrue(any("実行環境の復旧待ち" in c["body"] for c in self.github.comments.values()))
         self.assert_no_models()
 
     def test_submissions_are_thirty_minutes_apart_and_bounded_without_model_calls(self):

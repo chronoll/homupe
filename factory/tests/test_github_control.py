@@ -4,7 +4,7 @@ from __future__ import annotations
 from copy import deepcopy
 import unittest
 
-from factory.github_control import (COMMANDS, MAX_STATUS_CHARS, action_requirements,
+from factory.github_control import (COMMANDS, MAX_STATUS_CHARS, STATUS_MARKER, action_requirements,
     claim_command, command_record, finish_command, new_cursor, parse_command,
     safe_text, status_body, validate_cursor)
 
@@ -152,7 +152,7 @@ class ActionContracts(unittest.TestCase):
 
 
 class PublicStatus(unittest.TestCase):
-    def test_human_reason_review_findings_and_copyable_commands_are_present(self):
+    def test_concrete_question_review_and_only_relevant_command_are_present(self):
         state = {"phase": "needs-human", "halt_kind": "missing-information",
                  "reason": "plan requires human input: Which release date?",
                  "stopped": True}
@@ -160,14 +160,13 @@ class PublicStatus(unittest.TestCase):
                   "findings": [{"severity": "must", "file": "src/app/page.tsx",
                                 "line": 12, "message": "Handle an empty list."}]}
         body = status_body(42, state, review)
-        self.assertTrue(body.startswith("<!-- homupe-factory-status:v1 -->\n"))
-        self.assertIn("stop は即時強制終了ではありません", body)
-        for text in ("人の確認待ち", "Which release date?", "missing-information",
+        self.assertTrue(body.startswith(STATUS_MARKER + "\n<!-- homupe-factory-action:v1:answer -->\n"))
+        for text in ("回答待ち", "確認事項: Which release date?", "あなたの操作: 必要",
                      "The empty state is missing.", "src/app/page.tsx:12",
-                     "Handle an empty list.", "STOP", "失敗したジョブは保留のまま"):
+                     "Handle an empty list.", "STOP", "Issue 本文に追記", "通常の返信だけでは再開しません"):
             self.assertIn(text, body)
-        for command in COMMANDS:
-            self.assertIn("/factory " + command, body)
+        self.assertEqual(body.count("/factory "), 1)
+        self.assertIn("/factory retry", body)
         # A status posted using the same GitHub account cannot become a command.
         self.assertIsNone(parse_command({"body": body, "user": {"login": "chronoll"}}, "chronoll"))
 
@@ -217,15 +216,76 @@ class PublicStatus(unittest.TestCase):
         for invalid in ("https://evil.test/pull/33", url + "?token=secret", url + "/files"):
             self.assertNotIn(invalid, status_body(42, {"url": invalid}))
 
-    def test_output_is_bounded_while_all_control_commands_remain_copyable(self):
-        body = status_body(42, {"reason": "日本語の長い理由。" * 2000},
+    def test_output_is_bounded_while_the_relevant_command_remains_copyable(self):
+        body = status_body(42, {"phase": "needs-human", "next_action": "retry",
+                               "reason": "日本語の長い理由。" * 2000},
                            {"summary": "長い概要。" * 2000, "findings": [
                                {"severity": "must", "file": "README.md", "line": 1,
                                 "message": "詳細な指摘。" * 2000} for _ in range(100)]})
         self.assertLessEqual(len(body), MAX_STATUS_CHARS)
         self.assertIn("ほか 92 件", body)
-        for command in COMMANDS:
-            self.assertIn("/factory " + command, body)
+        self.assertEqual(body.count("/factory "), 1)
+        self.assertIn("/factory retry", body)
+
+    def test_active_and_repair_phases_need_no_human_action_or_command(self):
+        for phase in ("revision-queued", "planning", "implementing", "verifying", "reviewing", "repairing"):
+            body = status_body(42, {"phase": phase, "next_action": "answer",
+                                    "human_message": "A stale question"})
+            self.assertIn("<!-- homupe-factory-action:v1:wait -->", body)
+            self.assertIn("あなたの操作: 不要", body)
+            self.assertNotIn("/factory ", body)
+            self.assertNotIn("A stale question", body)
+        self.assertIn("検証エラーを自動修正中。あなたの操作不要", body)
+
+    def test_draft_pr_requires_review_instead_of_retry_or_business_answer(self):
+        body = status_body(42, {"phase": "draft-pr", "next_action": "answer",
+                               "human_message": "stale", "url": "https://github.com/chronoll/homupe/pull/33"})
+        self.assertIn("<!-- homupe-factory-action:v1:review -->", body)
+        for text in ("あなたの操作: 必要", "GitHub CI", "Preview", "staging", "main", "新しいトップレベルコメント",
+                     "/factory fix\n具体的な修正内容", "同じ PR", "インラインコメント", "Draft に戻します"):
+            self.assertIn(text, body)
+        self.assertEqual(body.count("/factory "), 1)
+        self.assertNotIn("/factory retry", body)
+        self.assertNotIn("確認事項: stale", body)
+
+    def test_technical_retry_and_intentional_stop_are_distinguished(self):
+        from factory.core import VerificationFailure
+        from factory.outcomes import classify_failure
+        technical = {"phase": "needs-human", **classify_failure(
+            VerificationFailure(["npm", "run", "check"], "Expected 1 but got 0"), {})}
+        body = status_body(42, technical)
+        for text in ("状態: 技術エラーで保留", "<!-- homupe-factory-action:v1:retry -->", "自動修正の上限", "業務上の判断", "追加のサブスク利用枠"):
+            self.assertIn(text, body)
+        stopped = status_body(42, {"phase": "needs-human", **classify_failure("local STOP requested", {})})
+        self.assertIn("あなたの操作: 不要（停止を続ける場合）", stopped)
+        self.assertNotIn("自動修正の上限", stopped)
+        self.assertEqual(stopped.count("/factory "), 1)
+
+    def test_missing_question_is_maintenance_and_does_not_invent_business_decisions(self):
+        body = status_body(42, {"phase": "needs-human", "next_action": "answer"})
+        self.assertIn("<!-- homupe-factory-action:v1:maintenance -->", body)
+        self.assertIn("具体的な確認事項を取得できていません", body)
+        self.assertNotIn("/factory retry", body)
+        self.assertNotIn("Issue 本文に追記", body)
+
+    def test_held_revision_retries_preserve_the_existing_pr_and_one_command(self):
+        for action in ("answer", "retry"):
+            body = status_body(42, {"phase": "needs-human", "revision": True,
+                                    "next_action": action, "human_message": "Which timezone?"})
+            self.assertIn("既存 PR を引き継ぎ、同じ PR を更新", body)
+            self.assertNotIn("既存 PR・ブランチがある場合は再試行を受け付けません", body)
+            self.assertEqual(body.count("/factory "), 1)
+            self.assertIn("/factory retry", body)
+
+    def test_maintenance_and_queue_resume_have_distinct_next_actions(self):
+        body = status_body(42, {"phase": "needs-human", "reason": "remote issue branch already exists"})
+        self.assertIn("<!-- homupe-factory-action:v1:maintenance -->", body)
+        self.assertIn("既存 PR", body)
+        self.assertNotIn("/factory retry", body)
+        queue = status_body(42, {"phase": "unstarted", "queue_stopped": True})
+        self.assertIn("/factory resume", queue)
+        self.assertEqual(queue.count("/factory "), 1)
+        self.assertIn("保留中の試行は再実行しません", queue)
 
     def test_missing_or_malformed_display_fields_do_not_dump_arbitrary_values(self):
         body = status_body(42, {"phase": {}, "reason": {"password": "hidden"}},

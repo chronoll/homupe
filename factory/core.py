@@ -24,6 +24,20 @@ class Busy(Halt):
     """Another dispatcher owns the shared repository lock."""
 
 
+class CommandFailure(Halt):
+    """A supervised child exited nonzero, rather than STOP/timeout/cleanup."""
+    def __init__(self, command, returncode):
+        self.command, self.returncode = str(command), returncode
+        super().__init__("command failed (%s): %s; see job logs" % (returncode, command))
+
+
+class VerificationFailure(Halt):
+    """A completed application check failed and may use one technical repair."""
+    def __init__(self, step, diagnostics):
+        self.step, self.diagnostics = step, diagnostics
+        super().__init__("検証失敗: %s | %s" % (step, diagnostics))
+
+
 MAX_JSON = 1024 * 1024
 MAX_OUTPUT = 32 * 1024 * 1024
 SHA = re.compile(r"^[0-9a-f]{40}$")
@@ -184,8 +198,7 @@ class Runner:
                 if log:
                     Path(log).write_bytes(data + b"\n--- stderr ---\n" + diagnostics)
                 if process.returncode:
-                    raise Halt("command failed (%s): %s; see job logs" %
-                               (process.returncode, argv[0]))
+                    raise CommandFailure(argv[0], process.returncode)
                 return (data + diagnostics if combine else data).decode("utf-8")
             finally:
                 # A CLI can exit while children are still running. Kill the whole

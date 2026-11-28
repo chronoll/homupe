@@ -156,9 +156,17 @@ class GitHubControl:
             raise Halt("実行中は retry/resume を受け付けません。完了または停止後に新しいコメントを送ってください。")
         # Record any interrupted attempt as held before releasing the queue.
         self.factory._interrupted_jobs()
+        revision_retry = False
         if command == "retry":
-            self.store.stop()  # Archive/repair failures must leave the queue held.
-            message = self._reconcile_retry(number, state)
+            if state.get("phase") != "needs-human":
+                raise Halt("このIssueは再試行待ちではありません。現在の処理が終わるまでお待ちください。")
+            if (self.store.job(number) / "revision.json").exists():
+                self.factory.revisions.retry(number)
+                revision_retry = True
+                message = "同じPRへの修正指示で再試行を受け付けました。今の操作は不要です。"
+            else:
+                self.store.stop()  # Archive/repair failures must leave the queue held.
+                message = self._reconcile_retry(number, state)
         else:
             message = "監視キューを再開しました。人の確認待ちの Issue は保留を維持します。"
         value = self._load()
@@ -166,7 +174,8 @@ class GitHubControl:
         if queue and not self.store.job(queue["issue"]).exists():
             self._remove_phase_label(queue["issue"], "factory:needs-human")
         self._write(value)
-        (self.store.root / "STOP").unlink(missing_ok=True)
+        if not revision_retry:
+            (self.store.root / "STOP").unlink(missing_ok=True)
         return message
 
     def queue_failure(self, code):
@@ -275,6 +284,8 @@ class GitHubControl:
             self.publish(number)
             # publish also writes the journal; retain its independent changes.
             value = self._load()
+        if not in_run and hasattr(self.factory, "revisions"):
+            self.factory.revisions.sync(comments, value["installed_at"])
 
     def _labels(self, number, phase):
         desired = "factory:needs-human" if phase == "needs-human" else (
@@ -306,6 +317,7 @@ class GitHubControl:
         queue = value.get("queue_failure")
         if state["phase"] == "unstarted" and queue and queue["issue"] == number:
             state = {"phase": "needs-human", "reason": queue["reason"],
+                "halt_kind": "runtime", "next_action": "maintenance",
                 "human_message": "キューの再開は /factory resume で要求できます。再発する場合は実行環境の保守が必要です。"}
         metadata = value["issues"].setdefault(str(number), {})
         review_file = self.store.job(number) / ("repair-1/review.json" if state.get("review_round") == 2 else "review.json")

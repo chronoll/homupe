@@ -67,16 +67,66 @@ function notificationMarker(key) {
   return `<!-- homupe-factory-notify:v1:${key} -->`;
 }
 
-function notificationBody(event) {
+function selectedText(value) {
+  // These fields were selected and redacted by the host, but remain task data.
+  // Re-escape for this comment and never allow a second mention or active HTML.
+  let text = value.replace(/\\([\\`*_~\[\]<>#])/g, "$1")
+    .replace(/[\p{Cc}\p{Cf}\p{Cs}]/gu, "")
+    .replace(/\b(?:authorization|proxy-authorization)\s*[:=].*/gi, "認証情報は非表示")
+    .replace(/\b[A-Za-z0-9_]*(?:TOKEN|SECRET|PASSWORD|PASSWD|API_KEY|APIKEY)[A-Za-z0-9_]*\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\s,;]+)/gi, "認証情報は非表示")
+    .replace(/\b(?:github_pat_[A-Za-z0-9_]+|gh[pousr]_[A-Za-z0-9_]+|sk-[A-Za-z0-9_-]+|xox[baprs]-[A-Za-z0-9-]+)\b/g, "認証情報は非表示")
+    .replace(/https?:\/\/[^\s<>"']+/g, "URLは非表示")
+    .replace(/(?<![\w:/])(?:[A-Za-z]:[\\/]|~\/|\/)[^\s,;)'"<>]+/g, "ローカルパスは非表示")
+    .replace(/\b[A-Za-z0-9_-]{32,}\b/g, "長い値は非表示")
+    .replace(/@/g, "＠").replace(/\s+/gu, " ").trim();
+  const characters = Array.from(text);
+  if (characters.length > 300) text = characters.slice(0, 299).join("") + "…";
+  const special = new Set(["\\", "`", "*", "_", "~", "[", "]", "<", ">", "#"]);
+  return Array.from(text, (character) => special.has(character) ? "\\" + character : character).join("");
+}
+
+function selectedStatus(body) {
+  const content = body.slice(STATUS_PREFIX.length);
+  const action = /^<!-- homupe-factory-action:v1:(wait|answer|retry|maintenance|review) -->\n/.exec(content)?.[1] || null;
+  const line = (label) => {
+    const found = content.split("\n").find((item) => item.startsWith(label + ":"));
+    return found ? selectedText(found.slice(label.length + 1)) : "";
+  };
+  return { action, question: line("確認事項"), reason: line("理由"),
+    review: line("レビュー概要"), phase: line("状態") };
+}
+
+function notificationBody(event, statusBody = STATUS_PREFIX) {
   const issueUrl = `https://github.com/${REPOSITORY}/issues/${event.issue}`;
   const statusUrl = `${issueUrl}#issuecomment-${event.status_comment}`;
+  const status = selectedStatus(statusBody);
+  // The status may have advanced while a milestone was queued. Its explicit
+  // current action takes precedence over an old event's next-step wording.
+  const action = status.action || (event.kind === "started" ? "wait" :
+    event.kind === "draft-complete" ? "review" : "legacy");
+  const repairExhausted = /(?:自動|技術)修正.{0,12}上限|after one bounded repair|repair budget.{0,20}exhausted/i.test(status.reason);
   const descriptions = {
-    started: "ファクトリーがこのIssueの処理を開始しました。",
-    "needs-human": "ファクトリーが停止し、確認が必要になりました。状態コメントを確認してください。",
-    "draft-complete": "検証とレビューを終え、staging向けDraft PRを作成しました。",
+    wait: "ファクトリーが処理中です。あなたの操作は不要です。",
+    answer: "回答が必要です。確認事項への回答をIssue本文に追記してください。",
+    retry: repairExhausted ? "技術修正の上限に達して停止しました。業務上の判断や回答は不要です。" :
+      "この試行は停止しています。停止理由を確認してください。",
+    maintenance: "実行環境や認証の復旧が必要です。あなたの仕様判断や回答は不要です。",
+    review: "人によるPRの確認が必要です。ChecksとPreviewを確認してください。",
+    legacy: "ファクトリーが停止しました。必要な操作を状態コメントで確認してください。",
   };
-  const lines = [notificationMarker(event.key), "", `@${OWNER} ${descriptions[event.kind]}`,
-    "", `[状態を確認する](${statusUrl})`];
+  const summary = action === "answer" ? status.question || status.reason || status.phase :
+    action === "wait" ? status.phase :
+    action === "review" ? status.review || status.phase : status.reason || status.review || status.phase;
+  const lines = [notificationMarker(event.key), "", `@${OWNER} ${descriptions[action]}`];
+  if (summary) lines.push("", (action === "answer" && status.question ? "確認事項: " : "概要: ") + summary);
+  if (action === "answer") {
+    lines.push("", "回答をIssue本文に追記した後、新しいコメントで次の1行を送ってください。", "", "```", "/factory retry", "```");
+  } else if (action === "retry") {
+    lines.push("", "サブスク利用枠を使った追加の試行を希望する場合だけ、このIssueに新しいコメントで次の1行を送ってください。", "", "```", "/factory retry", "```");
+  } else if (action === "maintenance") {
+    lines.push("", "状態コメントの復旧案内に沿って対応し、復旧後の再開方法を確認してください。");
+  }
+  lines.push("", `[状態を確認する](${statusUrl})`);
   if (event.kind === "draft-complete") {
     lines.push(`[Draft PRを確認する](https://github.com/${REPOSITORY}/pull/${event.pr})`);
   }
@@ -107,7 +157,7 @@ async function notify({ github, context }) {
   // Do not retry this POST here: a lost response may already have created the
   // comment. A same-key event re-delivery reconciles it through the list above.
   const { data: created } = await github.rest.issues.createComment({
-    ...target, issue_number: event.issue, body: notificationBody(event),
+    ...target, issue_number: event.issue, body: notificationBody(event, status.body),
   });
   return { status: "delivered", comment_id: created.id };
 }

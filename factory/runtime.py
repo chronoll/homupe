@@ -6,7 +6,8 @@ from pathlib import Path
 import re
 import uuid
 
-from factory.core import (Halt, IMPLEMENT_SCHEMA, PLAN_SCHEMA, REVIEW_SCHEMA,
+from factory.core import (CommandFailure, Halt, IMPLEMENT_SCHEMA, PLAN_SCHEMA, REVIEW_SCHEMA,
+                          VerificationFailure,
                           Runner, atomic_json, parse_json, validate)
 
 
@@ -207,6 +208,7 @@ class DockerRuntime:
                 if (store and store.stopped()) or str(error) == "local STOP requested":
                     raise
                 selected = []
+                tail = ""
                 try:
                     # Inspect a bounded tail and select diagnostics rather than
                     # publishing stdout or a whole fixture/test transcript.
@@ -226,6 +228,16 @@ class DockerRuntime:
                 if len(summary) > 600:  # Markdown escaping can expand safe_text.
                     summary = summary[:599].rstrip("\\") + "…"
                 command = labels.get(tuple(argv), "verification step " + str(index + 1))
+                infrastructure = re.search(r"cannot connect to.*docker|docker daemon|permission denied|"
+                    r"ENOTFOUND|ETIMEDOUT|ECONNREFUSED|ENOMEM|EAGAIN|out of memory|OOMKilled|"
+                    r"no space left|unauthorized|authentication required",
+                    tail, re.IGNORECASE)
+                if isinstance(error, CommandFailure) and (error.returncode not in range(1, 125) or infrastructure):
+                    raise Halt("runtime unavailable during verification: " + command + " | " + summary) from error
+                if (isinstance(error, CommandFailure)
+                        and tuple(argv) in labels and tuple(argv) != ("npm", "ci")
+                        and not infrastructure):
+                    raise VerificationFailure(command, summary or "検証コマンドが失敗しました。") from error
                 raise Halt("検証失敗: " + command + " | " + (summary or "診断を取得できませんでした。")) from error
 
     def review(self, workspace, evidence, prompt, log):
