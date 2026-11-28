@@ -2,8 +2,12 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 Use Node.js 22. Credential-free checks, fixture data, browser acceptance and the
 Vercel Preview workflow are documented in [Factory verification](docs/factory-verification.md).
-The [local factory dispatcher](docs/factory-dispatcher.md) adds an opt-in,
-subscription-backed Issue-to-draft-PR path with offline contract tests.
+The [local factory dispatcher](docs/factory-dispatcher.md) adds an opt-in path
+from an Issue to a draft PR targeting `staging`, using a ChatGPT subscription.
+Codex plans and implements the change; a fresh Codex session reviews it using a
+separate authentication volume. A fixed MCP server confines source reads and
+edits; independent containers run verification. Offline contract tests cover the
+dispatcher.
 
 ## Getting Started
 

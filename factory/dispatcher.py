@@ -182,7 +182,7 @@ class Factory:
         self.runtime.preflight(work)
         self.github.check_current(issue, self.config)
         self.store.save(number, "planning", base_sha=base)
-        plan = self.runtime.claude(work, "plan", prompt(self.repo, "plan", issue), job / "plan.log")
+        plan = self.runtime.worker(work, "plan", prompt(self.repo, "plan", issue), job / "plan.log")
         atomic_json(job / "plan.json", plan)
         if digest(work) != hashlib.sha256(json.dumps(before, sort_keys=True).encode()).hexdigest():
             raise Halt("planning modified the source snapshot")
@@ -193,7 +193,7 @@ class Factory:
         self.github.check_current(issue, self.config)
         self.store.check_stop()
         self.store.save(number, "implementing", base_sha=base)
-        implementation = self.runtime.claude(work, "implement",
+        implementation = self.runtime.worker(work, "implement",
             prompt(self.repo, "implement", issue, plan=plan), job / "implement.log")
         atomic_json(job / "implementation.json", implementation)
         if implementation["status"] != "done":
@@ -217,7 +217,7 @@ class Factory:
         atomic_json(evidence / "issue.json", issue)
         atomic_json(evidence / "plan.json", plan)
         atomic_json(evidence / "implementation.json", implementation)
-        atomic_json(evidence / "review-schema.json", REVIEW_SCHEMA)
+        atomic_json(evidence / "schema.json", REVIEW_SCHEMA)
         screenshots = []
         for path in sorted((work / "test-results").rglob("*.png")):
             if (path.is_symlink() or path.stat().st_size > 20 * 1024 * 1024
