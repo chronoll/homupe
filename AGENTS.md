@@ -36,7 +36,9 @@ Run targeted tests during development (example): `npm test -- TaskCard.test.tsx`
 ## Commit & Pull Request Guidelines
 - Prefer Conventional Commit style seen in history: `feat: ...`, `fix: ...`, `refactor: ...`.
 - Keep commits small and scoped to one concern.
+- Use one branch and one PR for each independently reviewable implementation unit; do not bundle unrelated features to reduce PR count.
 - PRs should include: summary of changes, linked issue (if any), test/lint results, and UI screenshots for visual updates.
+- For every PR, wait for its Vercel Preview deployment, open the deployed URL, verify affected screens at relevant desktop and mobile widths, and record the Preview URL plus the result or screenshots in the PR before merge. A missing or failed Preview is a merge blocker rather than a reason to substitute only local output.
 - Call out config or data changes explicitly (e.g., `.env` requirements, `data/*.json` updates).
 
 ## Security & Configuration Tips
