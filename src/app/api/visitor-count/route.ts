@@ -1,3 +1,4 @@
+import { isFactoryFixtureMode } from "@/lib/factory-fixtures";
 import { NextResponse } from 'next/server';
 import { createClient } from 'redis';
 
@@ -58,6 +59,7 @@ async function incrementVisitorCount(): Promise<number> {
 
 export async function GET() {
     try {
+        if (isFactoryFixtureMode()) return NextResponse.json({ count: 1234 });
         const count = await getVisitorCount();
         return NextResponse.json({ count });
     } catch (error) {
@@ -68,6 +70,7 @@ export async function GET() {
 
 export async function POST() {
     try {
+        if (isFactoryFixtureMode()) return NextResponse.json({ count: 1234 });
         const count = await incrementVisitorCount();
         return NextResponse.json({ count });
     } catch (error) {

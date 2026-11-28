@@ -1,10 +1,9 @@
+import { isFactoryFixtureMode, getFixtureBlogPost, getFixtureBlogPosts, getFixtureRelatedArticles, FixtureArticleNotFound } from "@/lib/factory-fixtures";
 import { Client } from '@notionhq/client';
 import { NextResponse } from 'next/server';
 import { PageObjectResponse, BlockObjectResponse } from '@notionhq/client/build/src/api-endpoints';
 
-const notion = new Client({
-  auth: process.env.NOTION_API_KEY,
-});
+function getNotion() { return new Client({ auth: process.env.NOTION_API_KEY }); }
 
 export async function GET(
   request: Request,
@@ -12,9 +11,14 @@ export async function GET(
 ) {
   try {
     const { id: pageId } = await params;
+    if (isFactoryFixtureMode()) {
+      const { blocks } = getFixtureBlogPost(pageId);
+      const post = getFixtureBlogPosts().find((post) => post.id === pageId)!;
+      return NextResponse.json({ ...post, blocks, relatedArticles: getFixtureRelatedArticles(pageId) });
+    }
 
     // ページの情報を取得
-    const page = await notion.pages.retrieve({ page_id: pageId }) as PageObjectResponse;
+    const page = await getNotion().pages.retrieve({ page_id: pageId }) as PageObjectResponse;
     
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const properties = page.properties as Record<string, any>;
@@ -55,7 +59,7 @@ export async function GET(
       try {
         const relatedPromises = relatedArticleIds.map(async (relatedId: string) => {
           try {
-            const relatedPage = await notion.pages.retrieve({ page_id: relatedId }) as PageObjectResponse;
+            const relatedPage = await getNotion().pages.retrieve({ page_id: relatedId }) as PageObjectResponse;
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const relatedProps = relatedPage.properties as Record<string, any>;
             
@@ -103,6 +107,7 @@ export async function GET(
       relatedArticles,
     });
   } catch (error) {
+    if (error instanceof FixtureArticleNotFound) return NextResponse.json({ error: "Article not found" }, { status: 404 });
     console.error('Error fetching Notion page:', error);
     return NextResponse.json(
       { error: 'Failed to fetch page from Notion' },
@@ -118,7 +123,7 @@ async function getPageBlocks(blockId: string): Promise<BlockObjectResponse[]> {
 
   do {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const response: any = await notion.blocks.children.list({
+    const response: any = await getNotion().blocks.children.list({
       block_id: blockId,
       start_cursor: cursor,
       page_size: 100,

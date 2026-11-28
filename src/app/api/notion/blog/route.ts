@@ -1,13 +1,13 @@
+import { isFactoryFixtureMode, getFixtureBlogPosts } from "@/lib/factory-fixtures";
 import { Client } from '@notionhq/client';
 import { NextResponse } from 'next/server';
 import { PageObjectResponse } from '@notionhq/client/build/src/api-endpoints';
 
-const notion = new Client({
-  auth: process.env.NOTION_API_KEY,
-});
+function getNotion() { return new Client({ auth: process.env.NOTION_API_KEY }); }
 
 export async function GET() {
   try {
+    if (isFactoryFixtureMode()) return NextResponse.json(getFixtureBlogPosts());
     const databaseId = process.env.NOTION_DATABASE_ID;
     
     if (!databaseId) {
@@ -19,7 +19,7 @@ export async function GET() {
 
     const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD形式
 
-    const response = await notion.databases.query({
+    const response = await getNotion().databases.query({
       database_id: databaseId,
       filter: {
         and: [

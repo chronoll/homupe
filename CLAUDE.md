@@ -16,11 +16,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 npm run dev          # 開発サーバー（Turbopack）
 npm run build        # 本番ビルド
-npm run lint         # ESLint + TypeScript チェック
+npm run lint         # ESLint（警告なし）
+npm run typecheck    # Next.js route 型生成 + TypeScript
 npm test             # Jest テスト全実行
+npm run check        # lint + typecheck + Jest CI
+npm run build:fixtures # 外部接続なしの検証用ビルド
+npm run test:e2e     # 1440px / 390px の Playwright 検証
 ```
 
-PR前: `npm run lint && npm test`
+PR前: `npm run check` と変更に関係する build / E2E を実行。
+Node.js 22を使用。Previewは固定fixtureデータを使い、本番サービスへ接続しない。
+手順・制約・Previewのコミット確認は `docs/factory-verification.md` を参照。
 
 ## Architecture
 

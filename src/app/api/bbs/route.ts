@@ -1,3 +1,4 @@
+import { isFactoryFixtureMode, getFixtureBBSPosts } from "@/lib/factory-fixtures";
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from 'redis';
 
@@ -79,6 +80,7 @@ async function addPost(name: string, message: string): Promise<BBSPost> {
 
 export async function GET() {
     try {
+        if (isFactoryFixtureMode()) return NextResponse.json({ posts: getFixtureBBSPosts() });
         const posts = await getPosts();
         return NextResponse.json({ posts });
     } catch (error) {
@@ -97,6 +99,10 @@ export async function POST(request: NextRequest) {
 
         if (message.trim().length > 200) {
             return NextResponse.json({ error: 'メッセージが長すぎます（200文字以内）' }, { status: 400 });
+        }
+
+        if (isFactoryFixtureMode()) {
+            return NextResponse.json({ error: "検証環境では投稿を保存できません" }, { status: 403 });
         }
 
         const newPost = await addPost(name, message);

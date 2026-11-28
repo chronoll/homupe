@@ -1,7 +1,7 @@
 'use client';
 
 import { Box } from '@mantine/core';
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useSyncExternalStore } from 'react';
 
 interface BlogBackgroundProps {
   children: ReactNode;
@@ -48,12 +48,12 @@ const particles = [
   { left: 7.80, top: 46.30, duration: 30.60, delay: 8.40, size: 3, type: 'small' },
 ];
 
-export default function BlogBackground({ children }: BlogBackgroundProps) {
-  const [isMounted, setIsMounted] = useState(false);
+const subscribe = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+export default function BlogBackground({ children }: BlogBackgroundProps) {
+  const isMounted = useSyncExternalStore(subscribe, getClientSnapshot, getServerSnapshot);
 
   return (
     <>
