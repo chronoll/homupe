@@ -1,0 +1,9 @@
+{
+  "number": 999999,
+  "state": "open",
+  "user": {"login": "chronoll"},
+  "labels": [{"name": "factory:ready"}],
+  "title": "READMEの既存コマンドの説明を明確にする",
+  "body": "READMEの開発コマンド説明を一文だけ分かりやすくしてください。機能や設定の変更は不要です。",
+  "updated_at": "2026-11-28T00:00:00Z"
+}

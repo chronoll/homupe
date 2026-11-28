@@ -2,7 +2,6 @@ name: CI
 
 on:
   pull_request:
-    branches: [main, staging]
   push:
     branches: [main, staging]
 
@@ -14,6 +13,38 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  container:
+    name: Factory container
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Build isolated local runtime
+        run: docker build --build-arg FACTORY_UID=$(id -u) --build-arg FACTORY_GID=$(id -g) -f .factory/Dockerfile -t homupe-factory:local .factory
+      - name: Check real container boundaries and application verification
+        run: python3 -m factory.container_smoke
+      - name: Save container verification evidence
+        if: ${{ always() && !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: factory-container-${{ github.run_id }}-${{ github.run_attempt }}
+          path: factory-container-results/
+          if-no-files-found: ignore
+          retention-days: 7
+  dispatcher:
+    name: Dispatcher contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Run offline dispatcher contracts
+        run: python3 -m unittest discover -s factory/tests -v
   verify:
     name: Verify
     runs-on: ubuntu-latest

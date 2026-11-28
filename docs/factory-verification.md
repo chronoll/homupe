@@ -1,7 +1,9 @@
 # Factory verification foundation
 
 This is the verification layer for the Issue-to-Staging Factory. It does not yet
-poll Issues, invoke AI agents, merge PRs, or deploy changes itself.
+poll Issues, invoke AI agents, merge PRs, or deploy changes itself. The separate
+[local dispatcher](factory-dispatcher.md) adds a shadow Issue-to-draft-PR path;
+merging and deployment gates remain later work.
 
 ## Local checks
 
