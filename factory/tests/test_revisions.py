@@ -453,6 +453,21 @@ class RevisionTests(unittest.TestCase):
         self.assertEqual(len(list((self.store.root / "jobs").glob("35.attempt-*"))), 1)
         self.assertEqual(self.factory.runtime.mock_calls, [])
 
+    def test_committed_queue_is_not_reported_rejected_when_label_write_fails(self):
+        self.github.original_issue['labels'].append('factory:needs-human')
+        listed = self.github.add(comment())
+        with patch.object(self.github, 'remove_label', side_effect=Halt('label unavailable')):
+            self.sync([listed])
+        record = self.journal()['commands']['100']
+        self.assertEqual(record['status'], 'done')
+        self.assertIn('受付記録を保存', record['message'])
+        self.assertNotIn('開始できません', record['message'])
+        self.assertTrue(self.store.stopped())
+        self.sync([listed])
+        self.assertFalse(self.store.stopped())
+        self.assertEqual(len(list((self.store.root / 'jobs').glob('35.attempt-*'))), 1)
+        self.assertEqual(self.factory.runtime.mock_calls, [])
+
     def test_recover_rolls_back_a_crash_before_new_state_is_committed(self):
         class Crash(BaseException):
             pass

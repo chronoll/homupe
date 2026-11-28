@@ -257,7 +257,21 @@ class Revisions:
             except RevisionQueueStopped:
                 record.update(status='failed', message='監視キューがSTOP中のため、この修正指示は開始しませんでした。停止を続ける場合は操作不要です。再開する場合は元のIssue #%s に新しいコメントで /factory resume を送り、受付返信を確認してから、このPRに新しい /factory fix と修正内容を送ってください。このコメントは再実行しません。' % revision['issue'])
             except (Halt, OSError, KeyError, ValueError):
-                record.update(status='failed', message='修正指示を開始できませんでした。PRが処理中、更新済み、または元のIssueが停止しています。Issueの状態を確認し、処理完了後に新しい指示を送ってください。')
+                # A failure after the durable queued commit (for example label
+                # projection) does not mean the instruction was rejected.
+                job = self.store.job(revision['issue'])
+                queued = False
+                try:
+                    state = parse_json((job / 'state.json').read_bytes())
+                    saved = parse_json((job / 'revision.json').read_bytes())
+                    queued = (state.get('phase') == 'revision-queued'
+                              and saved == revision)
+                except (Halt, OSError, ValueError):
+                    pass
+                if queued:
+                    record.update(status='done', message='修正指示の受付記録を保存しました。実行準備の復旧結果を照合しています。今は再送せず、元のIssue #%s の状態更新をお待ちください。' % revision['issue'])
+                else:
+                    record.update(status='failed', message='修正指示を開始できませんでした。PRが処理中、更新済み、または元のIssueが停止しています。Issueの状態を確認し、処理完了後に新しい指示を送ってください。')
             atomic_json(self.path, value)
         for record in value['commands'].values():
             try:
