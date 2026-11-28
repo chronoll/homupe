@@ -1,0 +1,290 @@
+"""Pure contracts for trusted Issue-comment control and public status messages.
+
+No API, filesystem, subprocess or model access occurs here. The controller must
+re-fetch the current comment/Issue, reject closed Issues and PRs, and persist a
+claim under its lock *before* performing an action. A claimed comment is never
+replayed, including after an uncertain response or an edit to its body.
+"""
+from __future__ import annotations
+
+from copy import deepcopy
+from datetime import datetime
+import re
+import unicodedata
+
+
+COMMANDS = frozenset({"status", "stop", "retry", "resume"})
+COMMAND_BODIES = {"/factory " + command: command for command in COMMANDS}
+STATUS_MARKER = "<!-- homupe-factory-status:v1 -->"
+MAX_STATUS_CHARS = 6000
+MAX_FINDINGS = 8
+_TICK = chr(96)
+_FENCE = _TICK * 3
+_STAMP = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$")
+_PHASES = {
+    "unstarted": "未着手", "claimed": "受付済み", "planning": "計画中",
+    "implementing": "実装中", "verifying": "検証中", "reviewing": "レビュー中",
+    "publishing": "PR 公開処理中", "draft-pr": "Draft PR 作成済み",
+    "needs-human": "人の確認待ち", "incomplete-claim": "受付記録の確認待ち",
+}
+
+
+def parse_command(comment, trusted_author):
+    """Recognize only an exact, single-line body from the current trusted user.
+
+    Timestamp/ID/freshness and Issue eligibility are separate checks. In
+    particular, do not strip whitespace, render Markdown, or inspect quoted text.
+    """
+    if not isinstance(comment, dict) or not isinstance(trusted_author, str) or not trusted_author:
+        return None
+    user = comment.get("user")
+    if not isinstance(user, dict) or user.get("login") != trusted_author:
+        return None
+    if user.get("type") not in (None, "User"):
+        return None
+    body = comment.get("body")
+    return COMMAND_BODIES.get(body) if isinstance(body, str) else None
+
+
+def _positive(value):
+    return type(value) is int and 0 < value < 2 ** 64
+
+
+def _timestamp(value):
+    if not isinstance(value, str) or not _STAMP.fullmatch(value):
+        return False
+    try:
+        datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ")
+    except ValueError:
+        return False
+    return True
+
+
+def command_record(comment, number, trusted_author):
+    """Validate API identity/timestamps for a new, never-edited command.
+
+    The caller additionally enforces the installation cutoff and freshness from
+    a current GitHub read. An edit is not a new instruction; post a new comment.
+    """
+    command = parse_command(comment, trusted_author)
+    if command is None or not _positive(number) or not _positive(comment.get("id")):
+        return None
+    created, updated = comment.get("created_at"), comment.get("updated_at")
+    if not _timestamp(created) or created != updated:
+        return None
+    return {"issue": number, "command": command, "created_at": created,
+            "updated_at": updated, "status": "claimed"}
+
+
+def new_cursor():
+    """A JSON-serializable receipt journal; IDs must never be pruned/replayed."""
+    return {"version": 1, "last_comment_id": 0, "comments": {}}
+
+
+def validate_cursor(cursor):
+    """Validate without repairing damaged state, and return an independent copy.
+
+    last_comment_id is diagnostic, not a cutoff: an unseen smaller ID can arrive
+    on a later page. The retained per-ID receipt provides the replay protection.
+    """
+    if (not isinstance(cursor, dict) or set(cursor) != {"version", "last_comment_id", "comments"}
+            or type(cursor["version"]) is not int or cursor["version"] != 1
+            or type(cursor["last_comment_id"]) is not int or cursor["last_comment_id"] < 0
+            or not isinstance(cursor["comments"], dict)):
+        raise ValueError("invalid GitHub command cursor")
+    highest = 0
+    fields = {"issue", "command", "created_at", "updated_at", "status"}
+    for key, record in cursor["comments"].items():
+        if not isinstance(key, str) or not re.fullmatch(r"[1-9][0-9]{0,19}", key) or not _positive(int(key)):
+            raise ValueError("invalid GitHub comment ID")
+        if (not isinstance(record, dict) or set(record) != fields
+                or not _positive(record["issue"]) or not isinstance(record["command"], str)
+                or record["command"] not in COMMANDS
+                or not _timestamp(record["created_at"])
+                or record["created_at"] != record["updated_at"]
+                or not isinstance(record["status"], str)
+                or record["status"] not in {"claimed", "done", "failed", "uncertain"}):
+            raise ValueError("invalid GitHub command receipt")
+        highest = max(highest, int(key))
+    if cursor["last_comment_id"] != highest:
+        raise ValueError("GitHub command cursor does not match its receipts")
+    return deepcopy(cursor)
+
+
+def claim_command(cursor, comment, number, trusted_author):
+    """Return (updated_cursor, record_or_None); persist before the action.
+
+    Known IDs are ignored regardless of their current body, author, timestamps
+    or previous outcome. A crash after claim therefore needs reconciliation,
+    rather than an implicit second execution.
+    """
+    result = validate_cursor(cursor)
+    if isinstance(comment, dict) and str(comment.get("id")) in result["comments"]:
+        return result, None
+    record = command_record(comment, number, trusted_author)
+    if record is None:
+        return result, None
+    comment_id = comment["id"]
+    result["comments"][str(comment_id)] = record
+    result["last_comment_id"] = max(result["last_comment_id"], comment_id)
+    return result, deepcopy(record)
+
+
+def finish_command(cursor, comment_id, outcome="done"):
+    """Mark a persisted claim without storing untrusted error/output text."""
+    result = validate_cursor(cursor)
+    if (not _positive(comment_id) or not isinstance(outcome, str)
+            or outcome not in {"done", "failed", "uncertain"}):
+        raise ValueError("invalid GitHub command outcome")
+    record = result["comments"].get(str(comment_id))
+    if record is None:
+        raise ValueError("GitHub command was not claimed")
+    if record["status"] not in {"claimed", outcome}:
+        raise ValueError("GitHub command already has a terminal outcome")
+    record["status"] = outcome
+    return result
+
+
+def action_requirements(command, state=None):
+    """Describe guards; this is not authorization to bypass controller checks.
+
+    The controller must check the trusted, open, non-PR Issue for every command.
+    It must reconcile an existing remote branch/PR or uncertain publication
+    before retry, and only clear STOP causes proven recoverable. Resume does not
+    release failed jobs. Retry archives this Issue's held attempt and re-freezes
+    its *current* body; it is explicit permission for a new usage-consuming run.
+    """
+    if not isinstance(command, str) or command not in COMMANDS:
+        raise ValueError("unknown factory command")
+    held = isinstance(state, dict) and state.get("phase") == "needs-human"
+    return {
+        "command": command, "requires_open_issue": True, "reject_pull_request": True,
+        "requires_held_job": command == "retry",
+        "held_job_available": held,
+        "requires_remote_reconciliation": command == "retry",
+        "requires_recoverable_stop": command in {"retry", "resume"},
+        "archives_this_attempt": command == "retry",
+        "refreezes_current_issue": command == "retry",
+        "explicit_model_retry": command == "retry",
+        "clears_stop": command in {"retry", "resume"},
+        "queue_only": command in {"stop", "resume"},
+        "preserves_held_jobs": command != "retry",
+    }
+
+
+def safe_text(value, limit=600):
+    """Bound public text, redact credentials/local paths, and escape Markdown.
+
+    Select only intended fields before calling this helper. Never publish raw
+    JSON, process output or arbitrary state: unknown secret formats cannot be
+    reliably identified from a free-form transcript.
+    """
+    if not isinstance(value, str):
+        return ""
+    text = re.sub(r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|$))", "", value)
+    text = "".join(char for char in text if not unicodedata.category(char).startswith("C")
+                   or char in "\n\t")
+    text = re.sub(r"-----BEGIN [^-]*PRIVATE KEY-----.*?-----END [^-]*PRIVATE KEY-----",
+                  "[credential redacted]", text, flags=re.DOTALL)
+    text = re.sub(r"(?im)\b(?:authorization|proxy-authorization)\s*[:=][^\n]*",
+                  "[authorization redacted]", text)
+    key = r"(?:[A-Za-z0-9_]*(?:TOKEN|SECRET|PASSWORD|PASSWD|API_KEY|APIKEY)[A-Za-z0-9_]*|password|secret|token)"
+    text = re.sub(r"(?i)\b" + key + r"\s*[:=]\s*(?:\"[^\"]*\"|'[^']*'|[^\s,;]+)",
+                  "[credential redacted]", text)
+    text = re.sub(r"(?i)\b(?:password|api key|access token)\s+is\s+\S+",
+                  "[credential redacted]", text)
+    text = re.sub(r"\b(?:github_pat_[A-Za-z0-9_]+|gh[pousr]_[A-Za-z0-9_]+|sk-[A-Za-z0-9_-]+"
+                  r"|xox[baprs]-[A-Za-z0-9-]+|AKIA[A-Z0-9]{16}"
+                  r"|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)\b",
+                  "[credential redacted]", text)
+    text = re.sub(r"https?://[^\s<>\"']+", "[URL redacted]", text)
+    text = re.sub(r"([\"'])(?:/|[A-Za-z]:[\\/]|~/).*?\1",
+                  "[local path redacted]", text)
+    text = re.sub(r"(?<![\w:/])(?:[A-Za-z]:[\\/]|~/|/)[^\s,;)'\"<>]+",
+                  "[local path redacted]", text)
+    text = re.sub(r"\b[A-Za-z0-9_-]{32,}\b", "[long value redacted]", text)
+    text = " ".join(text.split()).replace("@", "＠")
+    if len(text) > limit:
+        text = text[:max(0, limit - 1)] + "…"
+    # No free-form field may create a fence, link, HTML tag, heading or mention.
+    return re.sub(r"([\\\x60*_~\[\]<>#])", r"\\\1", text)
+
+
+def _location(finding):
+    path = finding.get("file")
+    if (not isinstance(path, str) or len(path) > 180
+            or not re.fullmatch(r"[A-Za-z0-9_. /@+-]+", path)
+            or path.startswith(("/", "~")) or ".." in path.split("/")
+            or any(part == "" for part in path.split("/"))
+            or safe_text(path, 180).replace("\\", "") != path.replace("@", "＠")):
+        return "パス非表示"
+    line = finding.get("line")
+    return path + (":" + str(line) if _positive(line) else "")
+
+
+def _command_help():
+    entries = [
+        ("状態を確認", "status"),
+        ("監視キュー全体の停止を要求（次の制御確認点で停止）", "stop"),
+        ("この Issue を明示的に再試行（サブスク利用枠を消費）", "retry"),
+        ("監視キュー全体を再開（失敗したジョブは保留のまま）", "resume"),
+    ]
+    lines = ["各枠の中の 1 行だけを、新しいコメント本文として送ってください。引用や説明を付けないでください。",
+             "制御コメントは待機中は約 5 分ごと、実行中は約 30 秒ごとに確認します。stop は即時強制終了ではありません。"]
+    for label, command in entries:
+        lines.extend(["", label + ":", _FENCE, "/factory " + command, _FENCE])
+    lines.extend(["", "retry は既存 PR・ブランチや公開結果を照合してから、この Issue の停止した試行を保存して新しい試行へ進みます。"
+                  "現在の Issue 本文を使い、復旧可能な STOP を解除します。",
+                  "resume はキューの STOP を解除します。人の確認待ちのジョブを自動再試行しません。"])
+    return "\n".join(lines)
+
+
+def status_body(number, state, review=None):
+    """Render selected job/review fields for a public Issue comment."""
+    if not _positive(number):
+        raise ValueError("invalid Issue number")
+    state = state if isinstance(state, dict) else {}
+    review = review if isinstance(review, dict) else {}
+    phase = state.get("phase", "unstarted")
+    phase_label = _PHASES.get(phase, "状態の確認が必要") if isinstance(phase, str) else "状態の確認が必要"
+    lines = [STATUS_MARKER, "Factory: Issue #" + str(number), "",
+             "状態: " + phase_label]
+    if state.get("stopped") is True or state.get("queue_stopped") is True:
+        lines.append("監視キュー: STOP（停止中）")
+    kind = safe_text(state.get("halt_kind"), 80)
+    if kind:
+        lines.append("停止区分: " + kind)
+    reason = safe_text(state.get("reason"), 600)
+    if reason:
+        lines.extend(["", "理由: " + reason])
+    human = safe_text(state.get("human_message"), 600)
+    if human:
+        lines.extend(["", "確認事項: " + human])
+    url = state.get("url")
+    if isinstance(url, str) and re.fullmatch(r"https://github\.com/chronoll/homupe/pull/[1-9][0-9]*", url):
+        lines.extend(["", "Draft PR: " + url])
+    verdict = review.get("verdict")
+    if isinstance(verdict, str) and verdict in {"approve", "changes", "needs-human"}:
+        lines.extend(["", "レビュー: " + verdict])
+    summary = safe_text(review.get("summary"), 400)
+    if summary:
+        lines.append("レビュー概要: " + summary)
+    findings = review.get("findings")
+    if isinstance(findings, list):
+        items = [item for item in findings if isinstance(item, dict)]
+        if items:
+            lines.extend(["", "指摘:"])
+        for item in items[:MAX_FINDINGS]:
+            severity = item.get("severity")
+            severity = severity if isinstance(severity, str) and severity in {"must", "should", "nit"} else "info"
+            message = safe_text(item.get("message"), 350) or "内容の確認が必要です。"
+            location = _location(item)
+            lines.append("- " + severity + " " + _TICK + location + _TICK + ": " + message)
+        if len(items) > MAX_FINDINGS:
+            lines.append("- ほか " + str(len(items) - MAX_FINDINGS) + " 件（表示省略）")
+    help_text = _command_help()
+    prefix = "\n".join(lines)
+    budget = MAX_STATUS_CHARS - len(help_text) - 3
+    if len(prefix) > budget:
+        prefix = prefix[:budget - 1] + "…"
+    return prefix + "\n\n" + help_text + "\n"

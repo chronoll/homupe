@@ -192,7 +192,31 @@ class Service:
             with contextlib.redirect_stdout(log), contextlib.redirect_stderr(log):
                 print(json.dumps({"tick_at": time.time()}), flush=True)
                 try:
-                    # Do not wake the VM or contact GitHub while paused.
+                    # GitHub is the control surface even while STOP is set.
+                    # Synchronize commands/notifications before deciding whether
+                    # to wake the VM. poll repeats this idempotently for direct
+                    # CLI callers, so neither entry point can bypass controls.
+                    controls = Factory(self.repo).sync_controls()
+                    if controls.get("status") == "busy":
+                        raise Busy("another dispatcher owns the controls lock")
+                except Busy:
+                    atomic_json(self.store.root / "watch.json", {
+                        "version": 1, "status": "busy", "last_checked": time.time(),
+                        "processed": 0, "stopped": self.store.stopped()})
+                    return 0
+                except (Halt, OSError) as error:
+                    # A temporary GitHub read/notification failure starts no
+                    # model and does not turn a running service into a new STOP.
+                    # The next scheduled tick can synchronize controls again.
+                    atomic_json(self.store.root / "watch.json", {
+                        "version": 1, "status": "error", "last_checked": time.time(),
+                        "reason": "GitHub control synchronization failed", "processed": 0,
+                        "stopped": self.store.stopped()})
+                    print(json.dumps({"error": str(error)}), flush=True)
+                    return 1
+                try:
+                    # A GitHub resume may have cleared STOP; a stop command keeps
+                    # the VM asleep while subsequent ticks still receive controls.
                     if not self.store.stopped():
                         runner = Runner(self.store)
                         try:
@@ -211,6 +235,16 @@ class Service:
                     return dispatch(["--repo", str(self.repo), "poll", "--execute"])
                 except (Halt, OSError) as error:
                     self.store.stop()
+                    try:
+                        control = Factory(self.repo).control
+                        if control:
+                            # Only a fixed public failure code crosses GitHub.
+                            # Host errors/paths and process output stay local.
+                            control.queue_failure("runtime-unavailable")
+                    except (Halt, OSError, ValueError, KeyError):
+                        # Notification failure must not undo the durable STOP or
+                        # cause another model/VM startup attempt in this tick.
+                        pass
                     atomic_json(self.store.root / "watch.json", {
                         "version": 1, "status": "needs-human", "last_checked": time.time(),
                         "reason": "watcher runtime startup failed", "processed": 0})
