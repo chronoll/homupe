@@ -16,7 +16,7 @@ import sys
 import tarfile
 import time
 
-from factory.core import (Halt, REVIEW_SCHEMA, Runner, SHA, Store, atomic_json,
+from factory.core import (Busy, Halt, REVIEW_SCHEMA, Runner, SHA, Store, atomic_json,
     changed, check_paths, clean_env, digest, files, git, matches, parse_json)
 from factory.runtime import DockerRuntime
 
@@ -149,16 +149,102 @@ class Factory:
             issue = self.github.issue(number)
             self.dry_run(issue)  # Apply exactly the same eligibility policy.
             job = self.store.claim(number, issue)
-            self.runner.deadline = time.monotonic() + 3600
+            return self._run_claimed(issue, job)
+
+    def _run_claimed(self, issue, job):
+        """The caller owns the store lock and has durably claimed this Issue."""
+        self.runner.deadline = time.monotonic() + 3600
+        try:
+            return self._run(issue, job)
+        except BaseException as error:
+            # Preserve publishing uncertainty; restart never spends another run.
+            self.store.save(issue["number"], "needs-human", reason=str(error) or type(error).__name__)
+            raise
+        finally:
+            self.runner.deadline = None
+
+    def _watch(self, result):
+        # Queue contents, Issue bodies, credentials and model output do not enter
+        # this small status file. Full evidence stays in the claimed job folder.
+        atomic_json(self.store.root / "watch.json", {
+            "version": 1, "last_checked": time.time(),
+            "status": result["status"], "result": result,
+        })
+        return result
+
+    def _interrupted_jobs(self):
+        interrupted = []
+        jobs = self.store.root / "jobs"
+        for job in sorted(jobs.glob("*")):
+            if not re.fullmatch(r"[1-9][0-9]*", job.name):
+                continue  # Explicit retry archives are retained, not active jobs.
+            number = int(job.name)
             try:
-                return self._run(issue, job)
-            except BaseException as error:
-                # Preserve the job, including publishing uncertainty. Never reset
-                # it to ready on restart or silently spend another subscription run.
-                self.store.save(number, "needs-human", reason=str(error) or type(error).__name__)
-                raise
-            finally:
-                self.runner.deadline = None
+                if job.is_symlink() or not job.is_dir():
+                    raise Halt("invalid numeric job directory")
+                state = parse_json((job / "state.json").read_bytes())
+                if (not isinstance(state, dict) or type(state.get("version")) is not int
+                        or state["version"] != 1
+                        or type(state.get("issue")) is not int or state["issue"] != number
+                        or not isinstance(state.get("phase"), str)):
+                    raise Halt("invalid job state")
+                if state["phase"] in {"needs-human", "draft-pr"}:
+                    continue
+                self.store.stop()
+                self.store.save(number, "needs-human",
+                    reason="previous dispatcher stopped during " + state["phase"])
+            except (Halt, OSError, ValueError):
+                # Keep incomplete/corrupt state as evidence rather than replacing
+                # it or silently turning the claim into a fresh subscription run.
+                self.store.stop()
+            interrupted.append(number)
+        return interrupted
+
+    def poll(self):
+        """One scheduled tick: one queue read, at most one job, then exit."""
+        claimed = None
+        try:
+            with self.store.lock():
+                if self.store.stopped():
+                    return self._watch({"status": "stopped", "processed": 0, "stopped": True})
+                interrupted = self._interrupted_jobs()
+                orphans = self.runtime.orphan_containers()
+                if interrupted or orphans:
+                    self.store.stop()  # Set before attempting any removal.
+                    self.runtime.remove_orphans(orphans)
+                    return self._watch({"status": "needs-human", "processed": 0,
+                        "stopped": True, "interrupted_jobs": interrupted,
+                        "orphan_containers_removed": len(orphans)})
+                pending = sorted((item for item in self.github.pending()
+                    if eligible(item, self.config)
+                    and not self.store.job(item["number"]).exists()), key=lambda item: item["number"])
+                if not pending:
+                    return self._watch({"status": "idle", "processed": 0, "stopped": False})
+                self.store.check_stop()
+                number = pending[0]["number"]
+                issue = self.github.issue(number)
+                if issue.get("number") != number:
+                    raise Halt("GitHub Issue number does not match the selected Issue")
+                self.dry_run(issue)  # Re-read eligibility before the durable claim.
+                job = self.store.claim(issue["number"], issue)
+                claimed = issue["number"]
+                try:
+                    result = self._run_claimed(issue, job)
+                except BaseException:
+                    self.store.stop()  # Set while the lock still excludes ticks.
+                    raise
+                return self._watch({"status": "processed", "processed": 1,
+                    "stopped": False, **result})
+        except Busy:
+            return self._watch({"status": "busy", "processed": 0,
+                "stopped": self.store.stopped()})
+        except BaseException:
+            if claimed is not None:
+                self.store.stop()
+            self._watch({"status": "needs-human" if self.store.stopped() else "error",
+                "processed": 0, "stopped": self.store.stopped(),
+                **({"issue": claimed} if claimed is not None else {})})
+            raise
 
     def _run(self, issue, job):
         number = issue["number"]
@@ -302,6 +388,8 @@ def main(argv=None):
     loop.add_argument("--execute", action="store_true", required=True)
     loop.add_argument("--interval", type=int, default=300)
     loop.add_argument("--max-jobs", type=int, default=1)
+    poll = sub.add_parser("poll", help="poll once and execute at most one eligible unclaimed Issue")
+    poll.add_argument("--execute", action="store_true", required=True)
     for name in ("doctor", "status", "stop", "resume"):
         sub.add_parser(name)
     retry = sub.add_parser("retry")
@@ -327,6 +415,8 @@ def main(argv=None):
                 result = factory.dry_run(issue)
             else:
                 result = factory.run(args.issue)
+        elif args.command == "poll":
+            result = factory.poll()
         elif args.command == "loop":
             if args.interval < 5 or args.max_jobs < 1:
                 raise Halt("interval must be >=5 and max-jobs >=1")
@@ -344,8 +434,7 @@ def main(argv=None):
                         time.sleep(1)
             result = {"processed": count, "stopped": factory.store.stopped()}
         elif args.command == "stop":
-            factory.store.root.mkdir(parents=True, exist_ok=True)
-            (factory.store.root / "STOP").touch()
+            factory.store.stop()
             result = {"stop_requested": True}
         elif args.command in ("resume", "retry"):
             with factory.store.lock():

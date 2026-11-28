@@ -23,6 +23,10 @@ DISABLED_FEATURES = (
     "code_mode_only", "unbounded_connection_retries", "view_image", "request_permissions_tool",
 )
 CODEX_MODEL = "gpt-5.6-sol"
+MANAGED_REPOSITORY_LABEL = "io.chronoll.homupe.factory.repository=chronoll/homupe"
+MANAGED_UID_LABEL = "io.chronoll.homupe.factory.uid="
+CONTAINER_ID = re.compile(r"^[0-9a-f]{64}$")
+LEGACY_CONTAINER_NAME = re.compile(r"^homupe-factory-[0-9a-f]{32}$")
 
 
 def codex_settings(writable=False):
@@ -58,6 +62,8 @@ class DockerRuntime:
             raise Halt("Docker bind paths cannot contain commas")
         uid, gid = os.getuid(), os.getgid()
         result = ["docker", "run", "--interactive", "--init", "--name", name or "factory-" + uuid.uuid4().hex,
+                  "--label", MANAGED_REPOSITORY_LABEL,
+                  "--label", MANAGED_UID_LABEL + str(uid),
                   "--user", "%s:%s" % (uid, gid), "--cap-drop", "ALL", "--security-opt",
                   # Next/Turbopack and Chromium use additional native threads.
                   "no-new-privileges", "--pids-limit", "256" if role else "512", "--memory", "4g",
@@ -80,6 +86,40 @@ class DockerRuntime:
         if evidence:
             result += ["--mount", "type=bind,src=%s,dst=/evidence,readonly" % Path(evidence).resolve()]
         return result + [self.image, *argv]
+
+    def orphan_containers(self):
+        """Called under the dispatcher lock; STOP must not block inspection.
+
+        All dispatcher invocations must share one state directory. With that
+        lock held, an owned container cannot belong to a healthy active job.
+        The legacy exact-name check covers containers created before labels.
+        """
+        supervisor = Runner()
+        managed = supervisor.run(["docker", "ps", "--all", "--quiet", "--no-trunc",
+            "--filter", "label=" + MANAGED_REPOSITORY_LABEL,
+            "--filter", "label=" + MANAGED_UID_LABEL + str(os.getuid())], timeout=30)
+        identifiers = set()
+        for line in managed.splitlines():
+            if not CONTAINER_ID.fullmatch(line):
+                raise Halt("Docker returned an invalid managed container ID")
+            identifiers.add(line)
+        legacy = supervisor.run(["docker", "ps", "--all", "--no-trunc",
+            "--format", "{{.ID}} {{.Names}}"], timeout=30)
+        for line in legacy.splitlines():
+            parts = line.split()
+            if len(parts) != 2 or not CONTAINER_ID.fullmatch(parts[0]):
+                raise Halt("Docker returned an invalid container listing")
+            if LEGACY_CONTAINER_NAME.fullmatch(parts[1]):
+                identifiers.add(parts[0])
+        return sorted(identifiers)
+
+    def remove_orphans(self, identifiers):
+        """Cleanup has no store so an existing STOP cannot prevent removal."""
+        if any(not isinstance(item, str) or not CONTAINER_ID.fullmatch(item) for item in identifiers):
+            raise Halt("refusing an unverified orphan container ID")
+        supervisor = Runner()
+        for offset in range(0, len(identifiers), 25):
+            supervisor.run(["docker", "rm", "-f", *identifiers[offset:offset + 25]], timeout=30)
 
     def call(self, workspace, argv, role=None, evidence=None, readonly=False,
              network=True, stdin=None, timeout=900, log=None, combine=False):

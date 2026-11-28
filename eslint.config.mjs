@@ -8,5 +8,6 @@ export default defineConfig([
   globalIgnores([
     ".next/**", ".next-fixtures/**", "out/**", "build/**", "coverage/**",
     "playwright-report/**", "test-results/**", "next-env.d.ts",
+    ".factory-state/**", "factory-container-results/**",
   ]),
 ]);
