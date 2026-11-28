@@ -283,6 +283,17 @@ class ServiceTests(unittest.TestCase):
         self.assertTrue(self.service.store.stopped())
         self.dispatch_mock.assert_not_called()
 
+    def test_short_custom_colima_home_preserves_existing_vm_startup(self):
+        colima_home = self.runtime / "c"
+        profile = colima_home / "default/colima.yaml"
+        profile.parent.mkdir(parents=True)
+        profile.write_text("# existing relocated profile\n")
+        self.runner.run.side_effect = [Halt("VM stopped"), ""]
+        with patch.dict(launchd.os.environ, {"COLIMA_HOME": str(colima_home)}):
+            self.assertEqual(self.service.tick(), 0)
+        self.assertEqual(self.runner.run.call_count, 2)
+        self.assert_poll_once()
+
     def test_stop_arriving_after_docker_failure_prevents_vm_start(self):
         self.vm_profile()
         def stopped(_argv, **_kwargs):

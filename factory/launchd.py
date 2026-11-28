@@ -199,7 +199,8 @@ class Service:
                             runner.run(["docker", "info"], timeout=15)
                         except Halt:
                             self.store.check_stop()
-                            profile = self.runtime / "colima/default/colima.yaml"
+                            colima_home = Path(os.environ.get("COLIMA_HOME", str(self.runtime / "colima")))
+                            profile = colima_home / "default/colima.yaml"
                             if not profile.is_file():
                                 raise Halt("existing factory VM profile is missing; inspect it before starting")
                             runner.run(["colima", "start", "--vm-type", "vz", "--arch", "aarch64",
