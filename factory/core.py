@@ -20,6 +20,10 @@ class Halt(RuntimeError):
     """A job needs human attention; never retry it implicitly."""
 
 
+class Busy(Halt):
+    """Another dispatcher owns the shared repository lock."""
+
+
 MAX_JSON = 1024 * 1024
 MAX_OUTPUT = 32 * 1024 * 1024
 SHA = re.compile(r"^[0-9a-f]{40}$")
@@ -57,14 +61,19 @@ def parse_json(raw):
 def atomic_json(path, value):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    temp = path.with_suffix(".tmp")
-    with temp.open("w", encoding="utf-8") as stream:
-        os.chmod(temp, 0o600)
-        json.dump(value, stream, ensure_ascii=False, indent=2)
-        stream.write("\n")
-        stream.flush()
-        os.fsync(stream.fileno())
-    os.replace(temp, path)
+    # A busy poll may update watch.json while the lock owner finishes a tick.
+    # Separate temporary files keep those atomic writes from sharing one .tmp.
+    fd, name = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=path.parent)
+    temp = Path(name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            json.dump(value, stream, ensure_ascii=False, indent=2)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temp, path)
+    finally:
+        temp.unlink(missing_ok=True)
     fd = os.open(str(path.parent), os.O_RDONLY)
     try:
         os.fsync(fd)
@@ -83,7 +92,7 @@ class Store:
             try:
                 fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError as error:
-                raise Halt("another dispatcher owns the repository lock") from error
+                raise Busy("another dispatcher owns the repository lock") from error
             try:
                 yield
             finally:
@@ -121,6 +130,10 @@ class Store:
     def check_stop(self):
         if self.stopped():
             raise Halt("local STOP requested")
+
+    def stop(self):
+        self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        (self.root / "STOP").touch(mode=0o600)
 
 
 class Runner:

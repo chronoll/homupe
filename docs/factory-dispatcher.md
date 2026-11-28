@@ -46,17 +46,20 @@ The CLI version is pinned to the locally checked interface in the Dockerfile.
 
 AI usage uses the ChatGPT subscription and its existing limits/settings. The code
 supplies no API key, buys no credits, and does not switch to API billing when
-rate-limited. It makes at most three model invocations per attempt (plan,
+rate-limited. An attempt starts Codex for up to three phases (plan,
 implementation, review), with a one-hour job deadline and no automatic retries.
-A loop defaults to one job per invocation. Jev is not used. CI makes no AI calls.
+Each phase can involve multiple inference requests and tool operations;
+subscription consumption depends on the Issue, rather than a fixed request count.
+A watcher tick processes at most one job. Jev is not used. CI makes no AI calls.
 
 ## Setup before a live trial
 
-The rollout created `staging` from the current `main` and merged PRs #29 and #30
+The rollout created `staging` from the current `main` and merged PRs #29, #30 and #31
 there first; it did not reuse the diverged `develop` or merge these changes into
 `main`. Confirm that staging is a Vercel Preview branch and `main` is Production.
-Merge the Codex configuration change into staging and rebuild the local image
-before a live trial. Production remains a separate human-controlled step.
+The Codex configuration change is included in staging. Rebuild the local image
+when changing its pinned tools or model settings. Production remains a separate
+human-controlled step.
 
 Sign in to GitHub CLI **on the host**, with permission to push this repo:
 
@@ -162,8 +165,40 @@ Remote CI/Preview checks and human review/merge are still required.
 
 ## Polling, stopping and recovery
 
-This rollout has one worker. Keep one controller on one awake PC. No daemon or
-scheduled task is installed. Local state does not coordinate multiple PCs.
+This rollout has one worker. Keep one controller on one awake PC. The optional
+macOS per-user LaunchAgent `com.chronoll.homupe.factory` checks immediately when
+loaded (`RunAtLoad`) and every 300 seconds while idle (`StartInterval`). Each
+one-shot poll processes at most one eligible Issue and then exits. A running job
+does not overlap another poll and has a one-hour deadline; checks may therefore
+be farther apart than five minutes. Local state does not coordinate multiple PCs.
+
+Install the watcher with the dedicated runtime directory, then explicitly start
+it from the repository root. The runtime path below is an example:
+
+```sh
+python3 -B -m factory.launchd --runtime /path/to/homupe-runtime install
+python3 -B -m factory.launchd start
+python3 -B -m factory.launchd status
+python3 -B -m factory.launchd stop
+```
+
+The Mac must be logged into this user account, awake, online, and able to use its
+container VM and saved CLI authentication. The Codex app and an open Terminal
+are not required. When enabled, the watcher loads at the user's next login.
+An explicit stop disables it across logins until an explicit start.
+
+`start` clears STOP under the controller lock, enables/loads the LaunchAgent and
+requests a check without killing an existing worker. `stop` sets STOP first,
+then disables/unloads the LaunchAgent and waits a bounded time for cleanup.
+Stop the watcher before stopping the VM. A job failure or detected crash sets
+STOP; the watcher does not retry the failed Issue or update its own code.
+
+The runtime directory keeps `watch.log` and its rotated `watch.log.1`,
+`watch-vm.log`, `launchd.stdout.log` and `launchd.stderr.log`. The last poll result
+is saved in `.factory-state/watch.json`. Inspect service status and these logs
+before clearing STOP after a failure.
+
+For a foreground session instead, the manual dispatcher commands remain:
 
 ```sh
 python3 bin/factory loop --execute --max-jobs 1 --interval 300
