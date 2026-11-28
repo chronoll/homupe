@@ -6,6 +6,7 @@ const REPOSITORY = "chronoll/homupe";
 const OWNER = "chronoll";
 const BOT = "github-actions[bot]";
 const EVENT_PREFIX = "<!-- homupe-factory-event:v1 -->\n";
+const HIDDEN_SUFFIX = "\n-->\nFactoryの状態を更新しました。";
 const STATUS_PREFIX = "<!-- homupe-factory-status:v1 -->\n";
 const KEYS = ["issue", "key", "kind", "pr", "status_comment"];
 const KINDS = new Set(["started", "needs-human", "draft-complete"]);
@@ -39,7 +40,15 @@ function validateEvent(context) {
   }
   let event;
   try {
-    event = JSON.parse(comment.body.slice(EVENT_PREFIX.length));
+    let raw = comment.body.slice(EVENT_PREFIX.length);
+    if (raw.startsWith("<!--\n")) {
+      if (!raw.endsWith(HIDDEN_SUFFIX)) return null;
+      raw = raw.slice("<!--\n".length, -HIDDEN_SUFFIX.length);
+      // The flat event contract never needs HTML delimiters inside JSON.
+      if (raw.includes("<!--") || raw.includes("-->")) return null;
+    }
+    // Retain the original JSON-only form for already submitted events.
+    event = JSON.parse(raw);
   } catch {
     return null;
   }
