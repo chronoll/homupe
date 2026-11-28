@@ -12,5 +12,6 @@ if (!/^[a-f0-9]{40}$/.test(process.env.PREVIEW_REVISION || "")) {
 export default defineConfig({
   ...localConfig,
   webServer: undefined,
+  globalSetup: "./e2e/preview-setup.ts",
   use: { ...localConfig.use, baseURL: url.origin },
 });

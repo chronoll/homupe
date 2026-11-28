@@ -11,13 +11,14 @@ async function capture(page: Page, testInfo: TestInfo, name: string) {
 
 const errors = new WeakMap<Page, string[]>();
 test.beforeEach(async ({ page, request, baseURL }) => {
+  errors.set(page, []);
   // Check before executing any client-side POST, including the visitor counter.
   const health = await request.get("/api/health");
   expect(health.ok()).toBe(true);
+  expect(health.headers()["content-type"], "Preview must return health JSON; check Deployment Protection access").toContain("application/json");
   const status = await health.json();
   expect(status.dataMode).toBe("fixture");
   if (process.env.PREVIEW_REVISION) expect(status.revision).toBe(process.env.PREVIEW_REVISION);
-  errors.set(page, []);
   page.on("pageerror", (error) => errors.get(page)!.push(error.message));
   // Seeded data and local images make all external browser traffic unnecessary.
   await page.route("**/*", (route) => {
@@ -25,7 +26,7 @@ test.beforeEach(async ({ page, request, baseURL }) => {
     return url.origin === new URL(baseURL!).origin ? route.continue() : route.abort();
   });
 });
-test.afterEach(async ({ page }) => { expect(errors.get(page)).toEqual([]); });
+test.afterEach(async ({ page }) => { expect(errors.get(page) ?? []).toEqual([]); });
 
 test("home renders the fixture BBS and deterministic counter", async ({ page }, testInfo) => {
   await page.goto("/");
