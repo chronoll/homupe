@@ -1,14 +1,46 @@
 """Only the parent has GitHub access; agents/tests see a source snapshot."""
 from __future__ import annotations
 
-import json
 import os
 from pathlib import Path
 import re
 import uuid
 
 from factory.core import (Halt, IMPLEMENT_SCHEMA, PLAN_SCHEMA, REVIEW_SCHEMA,
-                          Runner, parse_json, validate)
+                          Runner, atomic_json, parse_json, validate)
+
+
+# CLI capabilities checked against the image's pinned Codex 0.148.0. Workers
+# read/search only through the fixed MCP server copied into the read-only image;
+# bounded MCP writes are the implementation's edit tools. No model-generated process is
+# needed to read source, run tests, or inspect evidence.
+DISABLED_FEATURES = (
+    "shell_tool", "unified_exec", "apps", "hooks", "plugins", "remote_plugin",
+    "browser_use", "browser_use_external", "browser_use_full_cdp_access",
+    "computer_use", "in_app_browser", "multi_agent", "multi_agent_v2", "goals",
+    "tool_suggest", "skill_search", "skill_mcp_dependency_install", "memories",
+    "image_generation", "workspace_dependencies", "code_mode", "code_mode_host",
+    "code_mode_only", "unbounded_connection_retries", "view_image", "request_permissions_tool",
+)
+CODEX_MODEL = "gpt-5.6-sol"
+
+
+def codex_settings(writable=False):
+    """CLI config shared by all three fresh phases and offline smoke checks."""
+    argv = []
+    for feature in DISABLED_FEATURES:
+        argv += ["--disable", feature]
+    server_args = '["-I","/opt/factory-read-tools.py"' + (',"--allow-write"]' if writable else ']')
+    tools = '["list_files","read_file","search","read_image"' + (',"write_file","delete_file"]' if writable else ']')
+    mcp = ('mcp_servers={factory_source={command="/usr/bin/python3",args=' + server_args +
+           ',required=true,enabled_tools=' + tools + '}}')
+    argv += ["-c", mcp, "-c", 'web_search="disabled"',
+             "-c", 'forced_login_method="chatgpt"', "-c", 'approval_policy="never"',
+             "-c", 'skills.bundled.enabled=false', "-c", 'skills.include_instructions=false',
+             "-c", 'agents.enabled=false', "-c", 'project_doc_max_bytes=0',
+             "-c", 'model_provider="openai"', "-c", 'model="' + CODEX_MODEL + '"',
+             "-c", 'model_catalog_json="/opt/factory-model-catalog.json"']
+    return argv
 
 
 class DockerRuntime:
@@ -27,7 +59,8 @@ class DockerRuntime:
         uid, gid = os.getuid(), os.getgid()
         result = ["docker", "run", "--interactive", "--init", "--name", name or "factory-" + uuid.uuid4().hex,
                   "--user", "%s:%s" % (uid, gid), "--cap-drop", "ALL", "--security-opt",
-                  "no-new-privileges", "--pids-limit", "256", "--memory", "4g",
+                  # Next/Turbopack and Chromium use additional native threads.
+                  "no-new-privileges", "--pids-limit", "256" if role else "512", "--memory", "4g",
                   "--cpus", "2", "--read-only", "--network", "bridge" if network else "none",
                   "--tmpfs", "/tmp:rw,nosuid,size=1g", "--workdir", "/workspace",
                   "--mount", "type=bind,src=%s,dst=/workspace%s" %
@@ -39,6 +72,8 @@ class DockerRuntime:
         if role:
             # Dedicated named volumes, never the host HOME, config directories,
             # SSH agent, Docker socket, application env files or git directory.
+            if role not in {"codex", "codex-review"}:
+                raise Halt("unknown Codex authentication role")
             result += ["--mount", "type=volume,src=homupe-factory-%s,dst=/home/node" % role]
         else:
             result += ["--tmpfs", "/home/node:rw,uid=%s,gid=%s,mode=700,size=1g" % (uid, gid)]
@@ -67,13 +102,11 @@ class DockerRuntime:
     def preflight(self, workspace):
         info = parse_json(self.runner.run(["docker", "image", "inspect", self.image]))
         self.pin_image(info)
-        claude = parse_json(self.call(workspace, ["claude", "auth", "status"],
-                                     role="claude", readonly=True))
-        if not claude.get("loggedIn") or claude.get("authMethod") != "claude.ai":
-            raise Halt("container Claude Code must be signed in with a Claude subscription")
-        codex = self.call(workspace, ["codex", "login", "status"], role="codex", readonly=True, combine=True)
-        if "ChatGPT" not in codex:
-            raise Halt("container Codex must be signed in with ChatGPT, not an API key")
+        for role in ("codex", "codex-review"):
+            status = self.call(workspace, ["codex", "-C", "/tmp", "login", "status"],
+                               role=role, readonly=True, combine=True)
+            if "Logged in using ChatGPT" not in status or "API key" in status:
+                raise Halt("container %s must be signed in with ChatGPT, not an API key" % role)
 
     def pin_image(self, info):
         expected_user = "%s:%s" % (os.getuid(), os.getgid())
@@ -85,23 +118,35 @@ class DockerRuntime:
                 raise Halt("container image contains a credential environment variable")
         self.image = info[0]["Id"]  # Pin every subsequent invocation to this image.
 
-    def claude(self, workspace, phase, prompt, log):
+    def codex(self, workspace, evidence, prompt, log, schema, role, readonly):
+        # Docker provides the sandbox: read-only root/evidence, no host HOME,
+        # sockets or GitHub credentials. Do not require nested Linux namespaces.
+        # This command must never be run directly on the host.
+        argv = ["codex", "exec", "--strict-config", "--cd", "/tmp", "--ignore-user-config", "--ignore-rules", "--ephemeral",
+                "--sandbox", "danger-full-access", "--skip-git-repo-check", "--color", "never"]
+        # A clean /tmp working root and ignored user configuration prevent source
+        # .codex settings from adding servers or overriding the factory catalog.
+        # Only the image-owned bounded source/evidence server is launched.
+        argv += [*codex_settings(writable=not readonly), "--output-schema", "/evidence/schema.json",
+                 "--output-last-message", "/tmp/result.json", "-"]
+        # Codex progress goes to the log, and only its final JSON goes to stdout.
+        # This fixed script interpolates no Issue or model-provided text.
+        script = '"$@" >&2 && cat /tmp/result.json'
+        raw = self.call(workspace, ["sh", "-c", script, "factory-codex", *argv],
+                        role=role, evidence=evidence, readonly=readonly,
+                        stdin=prompt, log=log)
+        return validate(parse_json(raw), schema)
+
+    def worker(self, workspace, phase, prompt, log):
+        if phase not in {"plan", "implement"}:
+            raise Halt("unknown worker phase")
         schema = PLAN_SCHEMA if phase == "plan" else IMPLEMENT_SCHEMA
-        tools = "Read,Glob,Grep" if phase == "plan" else "Read,Glob,Grep,Edit,Write"
-        settings = {"disableAllHooks": True,
-                    "permissions": {"deny": ["Bash", "WebFetch", "WebSearch", "Agent"]}}
-        # Agents edit files only. All package installs/tests/commits run under
-        # dispatcher control. No shell, browser, MCP, hooks or API key fallback.
-        argv = ["claude", "-p", "--output-format", "json", "--json-schema", json.dumps(schema),
-                "--tools", tools, "--allowedTools", tools, "--permission-mode", "dontAsk",
-                "--setting-sources", "", "--settings", json.dumps(settings),
-                "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}',
-                "--no-chrome", "--disable-slash-commands", "--no-session-persistence"]
-        envelope = parse_json(self.call(workspace, argv, role="claude", stdin=prompt,
-                                      readonly=phase == "plan", log=log))
-        if envelope.get("is_error") or envelope.get("subtype") != "success":
-            raise Halt("Claude did not finish successfully; no automatic retry")
-        return validate(envelope.get("structured_output"), schema)
+        # The schema is dispatcher-owned, outside the writable source snapshot,
+        # in a separate mount for each fresh worker invocation.
+        evidence = Path(log).parent / (phase + "-evidence")
+        evidence.mkdir()
+        atomic_json(evidence / "schema.json", schema)
+        return self.codex(workspace, evidence, prompt, log, schema, "codex", phase == "plan")
 
     def verify(self, workspace, commands, log_dir):
         for index, argv in enumerate(commands):
@@ -114,14 +159,4 @@ class DockerRuntime:
         # read-only root/source/evidence, no host credentials, no host sockets.
         # Do not require nested Linux user namespaces inside the outer container.
         # This command must never be run directly on the host.
-        argv = ["codex", "exec", "--ignore-user-config", "--ignore-rules", "--ephemeral",
-                "--sandbox", "danger-full-access", "--skip-git-repo-check", "--color", "never",
-                "--output-schema", "/evidence/review-schema.json",
-                "--output-last-message", "/tmp/review.json", "-"]
-        # Codex emits progress separately; emit just its final JSON on stdout.
-        # This is a fixed script; no Issue or model text is interpolated into it.
-        script = '"$@" >&2 && cat /tmp/review.json'
-        raw = self.call(workspace, ["sh", "-c", script, "factory-review", *argv],
-                        role="codex", evidence=evidence, readonly=True,
-                        stdin=prompt, log=log)
-        return validate(parse_json(raw), REVIEW_SCHEMA)
+        return self.codex(workspace, evidence, prompt, log, REVIEW_SCHEMA, "codex-review", True)

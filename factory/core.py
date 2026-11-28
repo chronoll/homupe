@@ -246,9 +246,14 @@ def changed(before, after):
 
 
 def check_paths(paths):
+    protected = [pattern.casefold() for pattern in PROTECTED]
+    protected += [pattern[:-3] for pattern in protected if pattern.endswith("/**")]
     for path in paths:
-        parts = Path(path).parts
-        if ".git" in parts or matches(path, PROTECTED):
+        # A Linux container can create case variants that alias protected files
+        # when copied into the parent's case-insensitive macOS checkout.
+        folded = path.casefold()
+        parts = Path(folded).parts
+        if ".git" in parts or matches(folded, protected):
             raise Halt("protected path changed: " + path)
         if any(part.startswith(".env") and part != ".env.local.example" for part in parts):
             raise Halt("environment file rejected: " + path)

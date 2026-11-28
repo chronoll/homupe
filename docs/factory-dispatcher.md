@@ -1,7 +1,8 @@
 # Local factory dispatcher: shadow rollout
 
-This second increment is stacked on PR #29's verification foundation. It processes
-one trusted Issue through planning, implementation, independent checks and a fresh
+The verification foundation and dispatcher from PRs #29 and #30 are merged into
+`staging`; those merges left `main` unchanged. The dispatcher processes one trusted
+Issue through Codex planning, implementation, independent checks and a fresh Codex
 review, then pushes a **draft PR to staging**. It does not merge, wait for remote
 CI, deploy, or claim that a protected Preview was checked. Those gates come next.
 
@@ -34,16 +35,16 @@ Docker client. No paid server or hosted worker is needed. For example:
 
 ```sh
 brew install colima docker
-colima start --cpu 2 --memory 6
+colima start --cpus 2 --memory 6 --disk 40 --mount "$(pwd):w" --ssh-config=false --ssh-agent=false
 docker build --build-arg FACTORY_UID=$(id -u) --build-arg FACTORY_GID=$(id -g) -f .factory/Dockerfile -t homupe-factory:local .factory
 ```
 
-The image installs the official CLIs and Playwright Chromium; it needs several GB
-of disk and downloads dependencies. The Node base tag is moving: rebuild
+The image installs the official Codex CLI and Playwright Chromium; it needs
+several GB of disk and downloads dependencies. The Node base tag is moving: rebuild
 deliberately. Each job resolves the built image to its immutable image ID.
-CLI versions are pinned to the locally checked interfaces in the Dockerfile.
+The CLI version is pinned to the locally checked interface in the Dockerfile.
 
-AI usage uses the subscriptions and their existing limits/settings. The code
+AI usage uses the ChatGPT subscription and its existing limits/settings. The code
 supplies no API key, buys no credits, and does not switch to API billing when
 rate-limited. It makes at most three model invocations per attempt (plan,
 implementation, review), with a one-hour job deadline and no automatic retries.
@@ -51,10 +52,11 @@ A loop defaults to one job per invocation. Jev is not used. CI makes no AI calls
 
 ## Setup before a live trial
 
-Review/merge the foundation and dispatcher changes first. Create `staging` from
-the resulting current `main`; do not reuse the diverged `develop`. Confirm that
-staging is a Vercel Preview branch and `main` is Production. This PR does not
-create staging, change Vercel settings or merge either PR.
+The rollout created `staging` from the current `main` and merged PRs #29 and #30
+there first; it did not reuse the diverged `develop` or merge these changes into
+`main`. Confirm that staging is a Vercel Preview branch and `main` is Production.
+Merge the Codex configuration change into staging and rebuild the local image
+before a live trial. Production remains a separate human-controlled step.
 
 Sign in to GitHub CLI **on the host**, with permission to push this repo:
 
@@ -62,22 +64,35 @@ Sign in to GitHub CLI **on the host**, with permission to push this repo:
 gh auth login --hostname github.com
 ```
 
-Create independent AI homes in Docker named volumes. Do not mount the host home,
-GitHub config, SSH agent, application env files or Docker socket. Use subscription
-logins, not API/Console accounts:
+Create independent Codex homes in Docker named volumes: `homupe-factory-codex`
+for planning/implementation and `homupe-factory-codex-review` for review. Do not
+mount the host home, GitHub config, SSH agent, application env files or Docker
+socket. Sign in with ChatGPT:
 
 ```sh
-docker run --rm -it --mount type=volume,src=homupe-factory-claude,dst=/home/node homupe-factory:local claude auth login --claudeai
-docker run --rm -it --mount type=volume,src=homupe-factory-codex,dst=/home/node homupe-factory:local codex login --device-auth
+image_id="$(docker image inspect --format '{{.Id}}' homupe-factory:local)"
+login_factory_codex() {
+  docker run --rm -it --init --user "$(id -u):$(id -g)" \
+    --cap-drop ALL --security-opt no-new-privileges \
+    --pids-limit 256 --memory 4g --cpus 2 --read-only --network bridge \
+    --tmpfs /tmp:rw,nosuid,size=1g --workdir /tmp \
+    --mount "type=volume,src=homupe-factory-$1,dst=/home/node" \
+    --env GH_TOKEN=factory-disabled --env GITHUB_TOKEN=factory-disabled \
+    --env GIT_TERMINAL_PROMPT=0 --env GIT_SSH_COMMAND=false \
+    "$image_id" codex login --device-auth
+}
+login_factory_codex codex && login_factory_codex codex-review
 ```
 
-Follow the CLI browser instructions. These logins are separate from this chat's
-connector/browser and host CLI logins. Never sign in to GitHub inside either AI
-volume. Preflight requires Claude's `authMethod=claude.ai` and Codex's ChatGPT
-sign-in; a changed CLI contract stops execution for inspection.
+Use each URL and code shown by the CLI in a browser on any device; the user does
+not need to operate the Mac's Terminal to approve a device login. The person
+running the CLI can relay those device-login instructions. These logins are
+separate from this chat's connector/browser and host CLI logins. Never sign in to
+GitHub inside either AI volume. Preflight requires ChatGPT sign-in in both
+volumes; a changed CLI contract stops execution for inspection.
 
 `doctor` reports host prerequisites. Live execution also checks the built image,
-container subscriptions, exact staging SHA, existing Issue branches/PRs, and
+both container logins, exact staging SHA, existing Issue branches/PRs, and
 current Issue eligibility before invoking a model.
 
 ## Run an Issue
@@ -94,23 +109,47 @@ python3 bin/factory run 123 --execute
 ```
 
 The live path freezes the Issue, claims it durably and reads the exact staging
-SHA. Claude receives a source snapshot without `.git`. Planning is read-only;
-implementation has file tools but no shell, browser, MCP or subagents. The parent
-runs `npm ci`, `npm run check`, fixture build and desktop/mobile Playwright in
-containers with neither GitHub nor AI credentials. UI changes require both
+SHA. Each phase starts a fresh Codex session with a source snapshot without
+`.git`. Planning mounts the source read-only; implementation mounts the source
+writable. These phases use the planning/implementation authentication volume.
+The fixed factory MCP file server exposes `list_files`, `read_file` and literal
+`search` for supplied source/evidence paths, plus `read_image` for PNGs below
+`/evidence/screenshots`. It cannot execute commands or read the authentication
+home. Only implementation also receives `write_file` and `delete_file`, confined
+to permitted source paths. Each edit requires the expected SHA-256 of the
+existing file; `null` is accepted only when creating a new file. Protected paths
+cannot be edited by these tools.
+
+The image contains a read-only [model capability catalog](../.factory/model-catalog.md)
+for the explicitly selected `gpt-5.6-sol`. Together with the CLI flags, it disables
+built-in `apply_patch`, `view_image` and process execution; the MCP server supplies
+the permitted file operations. Codex starts in clean `/tmp` with strict CLI
+configuration, ignored user configuration/rules and no automatic project-document
+loading. Factory prompts explicitly require reading repository guidance through
+the bounded MCP tools. Apps, plugins, browser tools, hooks, bundled skills and
+subagents are disabled for these calls.
+
+The parent independently runs `npm ci`, `npm run check`, fixture build and
+desktop/mobile Playwright in containers with neither GitHub nor AI credentials.
+Agent commands do not replace those independent checks. UI changes require both
 sizes of dispatcher-produced screenshots.
 
 The parent creates a private commit and verifies its source equals the tested
-snapshot. A fresh Codex session reads a separate read-only snapshot, diff, Issue,
-plan and screenshots. Its reviewed SHA must match. Changes/needs-human or any
-must finding stops the attempt. Before publishing, the parent rechecks the
-Issue, STOP, unchanged staging SHA and clean candidate HEAD. It uses a normal
+snapshot. A fresh Codex session, with its separate review authentication volume,
+reads a separate read-only snapshot, diff, Issue, plan and screenshots. It does
+not resume either earlier conversation. Its reviewed SHA must match.
+Changes/needs-human or any must finding stops the attempt. Before publishing,
+the parent rechecks the Issue, STOP, unchanged staging SHA and clean candidate
+HEAD. It uses a normal
 push and `gh pr create --draft --base staging`; it never force-pushes or merges.
 
-The outer read-only Docker root/source/evidence provide the review sandbox.
-Codex uses `--sandbox danger-full-access` **only inside that container**, avoiding
-nested Linux namespace requirements. Never run that reviewer command on the
-host. Outbound networking remains enabled for AI/npm; this is not a domain
+The outer container provides each phase's filesystem boundary: read-only root,
+read-only source for planning/review, writable source for implementation, and
+read-only evidence for review. Containers drop capabilities, disallow privilege
+escalation and limit resources; no host credentials or sockets are mounted.
+Codex uses `--sandbox danger-full-access` **only inside these containers**,
+avoiding nested Linux namespace requirements. Never run that agent command on
+the host. Outbound networking remains enabled for AI/npm; this is not a domain
 firewall. Container-reachable host/network services must not expose
 unauthenticated administrative endpoints.
 
@@ -163,9 +202,5 @@ worktrees remain available and are not pruned automatically in this increment.
 
 - [Codex non-interactive mode](https://learn.chatgpt.com/docs/non-interactive-mode):
   saved authentication, structured output and isolated automation.
-- [Claude CLI reference](https://code.claude.com/docs/en/cli-reference): print mode,
-  structured output, subscription login, tool and MCP settings.
-- [Claude sandbox boundaries](https://code.claude.com/docs/en/sandboxing): the Bash
-  sandbox alone does not wrap every CLI capability, hence the outer container.
 - [Docker run](https://docs.docker.com/engine/containers/run/): read-only mounts,
   resource limits and container lifecycle.

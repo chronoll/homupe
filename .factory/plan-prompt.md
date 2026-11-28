@@ -17,3 +17,7 @@ human-owned PR in this first rollout.
 Do not access GitHub, credentials, production services, Jev, cloud/deploy tools,
 external APIs, or another user's files. Do not request extra permissions. Work
 requiring those capabilities must return needs-human with a concrete reason.
+
+Use factory_source list_files, read_file and literal search to inspect /workspace
+(root=source). These are the only configured MCP tools. Shell execution, browser,
+plugins, hooks and subagents are disabled. The planning source mount is read-only.

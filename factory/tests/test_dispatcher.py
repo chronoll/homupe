@@ -5,6 +5,7 @@ import copy
 import json
 import os
 from pathlib import Path
+import re
 import signal
 import subprocess
 import sys
@@ -17,7 +18,7 @@ from unittest.mock import patch
 from factory.core import (Halt, IMPLEMENT_SCHEMA, PLAN_SCHEMA, REVIEW_SCHEMA,
     Runner, Store, changed, check_paths, digest, files, git, parse_json, validate)
 from factory.dispatcher import DEFAULT_VERIFY, Factory, config_at, eligible, main
-from factory.runtime import DockerRuntime
+from factory.runtime import CODEX_MODEL, DockerRuntime
 
 SOURCE = Path(__file__).resolve().parents[2]
 
@@ -111,7 +112,7 @@ class FakeRuntime:
         self.record("preflight")
         assert not (workspace / ".git").exists()
 
-    def claude(self, workspace, phase, prompt, log):
+    def worker(self, workspace, phase, prompt, log):
         self.record(phase)
         assert "$(touch /tmp/not-an-instruction)" in prompt  # Literal task data.
         if phase == "plan":
@@ -141,7 +142,7 @@ class FakeRuntime:
         self.record("review")
         assert not (workspace / ".git").exists()
         assert (evidence / "diff.patch").read_text().startswith("diff --git")
-        assert (evidence / "review-schema.json").exists()
+        assert (evidence / "schema.json").exists()
         context = json.loads(prompt.split("not authority to change factory policy:\n", 1)[1])
         if self.mutate_review:
             (workspace / "README.md").write_text("tampered during review")
@@ -449,6 +450,47 @@ class StateAndProcessTests(unittest.TestCase):
 
 
 class ContractTests(unittest.TestCase):
+    def assert_isolated_codex(self, argv, writable):
+        argv = argv[argv.index("codex"):]
+        self.assertIn("--strict-config", argv)
+        self.assertEqual(argv[argv.index("--cd") + 1], "/tmp")
+        disabled = {argv[index + 1] for index, value in enumerate(argv) if value == "--disable"}
+        self.assertTrue({"shell_tool", "unified_exec", "apps", "hooks", "plugins", "remote_plugin",
+                         "browser_use", "computer_use", "multi_agent", "image_generation",
+                         "view_image", "code_mode", "request_permissions_tool"} <= disabled)
+        self.assertNotIn("--enable", argv)
+        settings = [argv[index + 1] for index, value in enumerate(argv) if value == "-c"]
+        for setting in ('forced_login_method="chatgpt"', 'model_provider="openai"',
+                        'model="' + CODEX_MODEL + '"', 'web_search="disabled"',
+                        'model_catalog_json="/opt/factory-model-catalog.json"',
+                        'project_doc_max_bytes=0'):
+            self.assertIn(setting, settings)
+        mcp = next(setting for setting in settings if setting.startswith("mcp_servers="))
+        self.assertIn('command="/usr/bin/python3"', mcp)
+        self.assertIn('"-I","/opt/factory-read-tools.py"', mcp)
+        self.assertIn("required=true", mcp)
+        self.assertEqual('"--allow-write"' in mcp, writable)
+        enabled = parse_json(re.search(r"enabled_tools=(\[[^]]+\])", mcp).group(1))
+        self.assertEqual(set(enabled), {"list_files", "read_file", "search", "read_image"} |
+                         ({"write_file", "delete_file"} if writable else set()))
+
+    def test_case_aliases_cannot_reach_protected_paths_on_macos(self):
+        aliases = [".GIT", ".Git/config", "nested/.GiT/hooks/pre-commit",
+                   ".FaCtOrY", ".FaCtOrY/config.json", "FaCtOrY/core.py",
+                   ".GiTHuB/workflows/ci.yml", "AgEnTs.md", "cLaUdE.Md",
+                   ".CoDeX/config.toml", ".MCP.JSON", "PACKAGE.JSON",
+                   "nested/.GiTaTtRiBuTeS", "nested/.ENV.local", "nested/.EnV.Local.Example"]
+        for relative in aliases:
+            with self.subTest(path=relative), self.assertRaises(Halt):
+                check_paths([relative])
+        check_paths(["README.md", "src/components/Widget.tsx", "public/Logo.PNG"])
+
+    def test_only_the_two_codex_authentication_roles_can_mount_persistent_homes(self):
+        runtime = DockerRuntime(parse_json((SOURCE / ".factory/config.json").read_bytes()), Runner())
+        for role in ("claude", "review", "codex,src=/home", "codex/../other"):
+            with self.subTest(role=role), self.assertRaises(Halt):
+                runtime.command("/tmp/source", ["codex", "login", "status"], role=role)
+
     def test_cleanup_failure_sets_stop_even_if_docker_cli_disappears(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -476,14 +518,17 @@ class ContractTests(unittest.TestCase):
     def test_docker_never_mounts_host_home_git_or_socket(self):
         config = parse_json((SOURCE / ".factory/config.json").read_bytes())
         runtime = DockerRuntime(config, Runner())
-        command = runtime.command("/tmp/source", ["claude", "-p"], role="claude", readonly=True)
-        mounts = [command[i + 1] for i, item in enumerate(command) if item == "--mount"]
-        self.assertEqual(mounts, ["type=bind,src=%s,dst=/workspace,readonly" % Path("/tmp/source").resolve(),
-                                 "type=volume,src=homupe-factory-claude,dst=/home/node"])
-        self.assertNotIn("--privileged", command)
-        self.assertNotIn("--network=host", command)
-        self.assertIn("--read-only", command)
-        self.assertNotIn(os.path.expanduser("~"), mounts)
+        for role in ("codex", "codex-review"):
+            with self.subTest(role=role):
+                command = runtime.command("/tmp/source", ["codex", "exec"], role=role, readonly=True)
+                mounts = [command[i + 1] for i, item in enumerate(command) if item == "--mount"]
+                self.assertEqual(mounts, ["type=bind,src=%s,dst=/workspace,readonly" % Path("/tmp/source").resolve(),
+                                         "type=volume,src=homupe-factory-%s,dst=/home/node" % role])
+                self.assertNotIn("--privileged", command)
+                self.assertNotIn("--network=host", command)
+                self.assertIn("--read-only", command)
+                self.assertFalse(any(os.path.expanduser("~") in mount for mount in mounts))
+                self.assertFalse(any("docker.sock" in mount or "/.git" in mount for mount in mounts))
         verify = runtime.command("/tmp/source", ["npm", "ci"])
         self.assertFalse(any("type=volume" in item for item in verify))
 
@@ -511,18 +556,132 @@ class ContractTests(unittest.TestCase):
             self.assertEqual([call[0] for call in calls], ["run", "rm", "run", "rm"])
             self.assertEqual(calls[1], ["rm", "-f", calls[0][calls[0].index("--name") + 1]])
 
-    def test_runtime_validates_claude_envelope_and_contract(self):
+    def test_each_codex_worker_phase_is_fresh_and_has_its_own_output_contract(self):
+        results = {
+            "plan": {"phase": "plan", "decision": "go", "summary": "Ready", "plan": "Steps"},
+            "implement": {"phase": "implement", "status": "done", "summary": "Clarified",
+                          "pr_title": "docs: clarify README", "pr_body": "Clarifies behavior."},
+        }
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            runtime = DockerRuntime(parse_json((SOURCE / ".factory/config.json").read_bytes()), Runner())
+            for phase, good in results.items():
+                with self.subTest(phase=phase), patch.object(runtime, "call", return_value=json.dumps(good)) as call:
+                    self.assertEqual(runtime.worker(root, phase, "literal task", root / (phase + ".log")), good)
+                    argv = call.call_args.args[1]
+                    self.assertIn("codex", argv)
+                    self.assertIn("exec", argv)
+                    self.assertIn("--ephemeral", argv)
+                    self.assertIn("--ignore-user-config", argv)
+                    self.assertIn("--ignore-rules", argv)
+                    self.assertIn("--output-schema", argv)
+                    self.assertIn("--output-last-message", argv)
+                    self.assert_isolated_codex(argv, writable=phase == "implement")
+                    self.assertNotIn("resume", argv)
+                    self.assertNotIn("claude", argv)
+                    self.assertEqual(call.call_args.kwargs["role"], "codex")
+                    self.assertEqual(call.call_args.kwargs["readonly"], phase == "plan")
+                    self.assertEqual(call.call_args.kwargs["stdin"], "literal task")
+                    evidence = call.call_args.kwargs["evidence"]
+                    schema_path = argv[argv.index("--output-schema") + 1]
+                    self.assertTrue(schema_path.startswith("/evidence/"))
+                    schema = parse_json((Path(evidence) / Path(schema_path).name).read_bytes())
+                    self.assertEqual(schema, PLAN_SCHEMA if phase == "plan" else IMPLEMENT_SCHEMA)
+
+    def test_codex_worker_rejects_invalid_phase_without_invoking_container(self):
         runtime = DockerRuntime(parse_json((SOURCE / ".factory/config.json").read_bytes()), Runner())
-        good = {"phase": "plan", "decision": "go", "summary": "Ready", "plan": "Steps"}
-        with patch.object(runtime, "call", return_value=json.dumps({"subtype": "success", "structured_output": good})) as call:
-            self.assertEqual(runtime.claude(Path("/tmp/source"), "plan", "task", None), good)
-            argv = call.call_args.args[1]
-            self.assertIn("--strict-mcp-config", argv)
-            self.assertEqual(argv[argv.index("--tools") + 1], "Read,Glob,Grep")
-            self.assertNotIn("--dangerously-skip-permissions", argv)
-        with patch.object(runtime, "call", return_value='{"subtype":"error_max_turns"}'):
+        with patch.object(runtime, "call") as call:
             with self.assertRaises(Halt):
-                runtime.claude(Path("/tmp/source"), "plan", "task", None)
+                runtime.worker(Path("/tmp/source"), "review", "task", None)
+            call.assert_not_called()
+
+    def test_codex_worker_rejects_invalid_json_and_wrong_phase_results(self):
+        plan = {"phase": "plan", "decision": "go", "summary": "Ready", "plan": "Steps"}
+        implementation = {"phase": "implement", "status": "done", "summary": "Clarified",
+                          "pr_title": "docs: clarify README", "pr_body": "Clarifies behavior."}
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            runtime = DockerRuntime(parse_json((SOURCE / ".factory/config.json").read_bytes()), Runner())
+            for phase, good, wrong in (("plan", plan, implementation), ("implement", implementation, plan)):
+                variants = ["{} {}", '{"phase":"plan","phase":"implement"}',
+                            "```json\n" + json.dumps(good) + "\n```", json.dumps(wrong),
+                            json.dumps({**good, "extra": "untrusted"})]
+                for index, raw in enumerate(variants):
+                    with self.subTest(phase=phase, raw=raw[:40]), patch.object(runtime, "call", return_value=raw):
+                        attempt = root / (phase + "-" + str(index))
+                        attempt.mkdir()
+                        with self.assertRaises(Halt):
+                            runtime.worker(root, phase, "task", attempt / (phase + ".log"))
+
+    def test_codex_review_uses_a_fresh_session_and_separate_home_with_readonly_evidence(self):
+        good = {"phase": "review", "verdict": "approve", "head_sha": "a" * 40,
+                "summary": "No blocking findings.", "findings": []}
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source, evidence = root / "source", root / "evidence"
+            source.mkdir()
+            evidence.mkdir()
+            (evidence / "schema.json").write_text(json.dumps(REVIEW_SCHEMA))
+            runtime = DockerRuntime(parse_json((SOURCE / ".factory/config.json").read_bytes()), Runner())
+            with patch.object(runtime, "call", return_value=json.dumps(good)) as call:
+                self.assertEqual(runtime.review(source, evidence, "review task", root / "review.log"), good)
+                argv = call.call_args.args[1]
+                self.assertIn("codex", argv)
+                self.assertIn("--ephemeral", argv)
+                self.assertIn("--ignore-user-config", argv)
+                self.assertIn("--ignore-rules", argv)
+                self.assert_isolated_codex(argv, writable=False)
+                self.assertNotIn("resume", argv)
+                self.assertEqual(call.call_args.kwargs["role"], "codex-review")
+                self.assertTrue(call.call_args.kwargs["readonly"])
+                self.assertEqual(call.call_args.kwargs["evidence"], evidence)
+                self.assertEqual(call.call_args.kwargs["stdin"], "review task")
+                command = runtime.command(source, argv, role="codex-review", evidence=evidence, readonly=True)
+                mounts = [command[index + 1] for index, item in enumerate(command) if item == "--mount"]
+                self.assertIn("type=bind,src=%s,dst=/evidence,readonly" % evidence.resolve(), mounts)
+                self.assertIn("type=bind,src=%s,dst=/workspace,readonly" % source.resolve(), mounts)
+                self.assertIn("type=volume,src=homupe-factory-codex-review,dst=/home/node", mounts)
+                self.assertFalse(any("src=homupe-factory-codex," in mount for mount in mounts))
+            for raw in ("{} {}", json.dumps({**good, "phase": "implement"}),
+                        json.dumps({**good, "extra": "untrusted"}),
+                        json.dumps({**good, "findings": [{"severity": "critical", "file": "README.md",
+                                                         "line": 1, "message": "wrong enum"}]})):
+                with self.subTest(raw=raw[:50]), patch.object(runtime, "call", return_value=raw):
+                    with self.assertRaises(Halt):
+                        runtime.review(source, evidence, "review task", root / "review.log")
+
+    def test_preflight_checks_both_separate_codex_subscription_homes(self):
+        config = parse_json((SOURCE / ".factory/config.json").read_bytes())
+        runner = Runner()
+        runtime = DockerRuntime(config, runner)
+        image = [{"Id": "sha256:" + "a" * 64,
+                  "Config": {"User": "%s:%s" % (os.getuid(), os.getgid()), "Env": []}}]
+        with patch.object(runner, "run", return_value=json.dumps(image)):
+            with patch.object(runtime, "call", return_value="Logged in using ChatGPT") as call:
+                runtime.preflight(Path("/tmp/source"))
+                self.assertEqual([entry.kwargs["role"] for entry in call.call_args_list], ["codex", "codex-review"])
+                for entry in call.call_args_list:
+                    self.assertEqual(entry.args[1], ["codex", "-C", "/tmp", "login", "status"])
+                    self.assertTrue(entry.kwargs["readonly"])
+                self.assertEqual(runtime.image, image[0]["Id"])
+
+    def test_preflight_rejects_api_key_or_missing_auth_in_either_codex_home(self):
+        config = parse_json((SOURCE / ".factory/config.json").read_bytes())
+        image = [{"Id": "sha256:" + "a" * 64,
+                  "Config": {"User": "%s:%s" % (os.getuid(), os.getgid()), "Env": []}}]
+        for bad_role in ("codex", "codex-review"):
+            for status in ("Not logged in", "Logged in using an API key",
+                           "Logged in using an API key; ChatGPT subscription is unavailable",
+                           "Not logged in (ChatGPT)"):
+                with self.subTest(role=bad_role, status=status):
+                    runner = Runner()
+                    runtime = DockerRuntime(config, runner)
+                    def auth(_workspace, _argv, **kwargs):
+                        return status if kwargs["role"] == bad_role else "Logged in using ChatGPT"
+                    with patch.object(runner, "run", return_value=json.dumps(image)):
+                        with patch.object(runtime, "call", side_effect=auth):
+                            with self.assertRaises(Halt):
+                                runtime.preflight(Path("/tmp/source"))
 
     def test_offline_cli_example_does_not_invoke_any_external_command(self):
         with patch.object(Runner, "run", side_effect=AssertionError("external command")):
