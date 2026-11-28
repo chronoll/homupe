@@ -121,7 +121,7 @@ existing file; `null` is accepted only when creating a new file. Protected paths
 cannot be edited by these tools.
 
 The image contains a read-only [model capability catalog](../.factory/model-catalog.md)
-for the explicitly selected `gpt-6.1-sol`. Together with the CLI flags, it disables
+for the explicitly selected `gpt-5.6-sol`. Together with the CLI flags, it disables
 built-in `apply_patch`, `view_image` and process execution; the MCP server supplies
 the permitted file operations. Codex starts in clean `/tmp` with strict CLI
 configuration, ignored user configuration/rules and no automatic project-document

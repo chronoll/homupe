@@ -22,7 +22,7 @@ DISABLED_FEATURES = (
     "image_generation", "workspace_dependencies", "code_mode", "code_mode_host",
     "code_mode_only", "unbounded_connection_retries", "view_image", "request_permissions_tool",
 )
-CODEX_MODEL = "gpt-6.1-sol"
+CODEX_MODEL = "gpt-5.6-sol"
 
 
 def codex_settings(writable=False):

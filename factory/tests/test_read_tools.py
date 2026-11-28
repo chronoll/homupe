@@ -195,7 +195,7 @@ class ReadToolsTests(unittest.TestCase):
         self.assertEqual(set(catalog), {"models"})
         self.assertEqual(len(catalog["models"]), 1)
         model = catalog["models"][0]
-        self.assertEqual(model["slug"], "gpt-6.1-sol")
+        self.assertEqual(model["slug"], "gpt-5.6-sol")
         self.assertEqual(model["shell_type"], "disabled")
         self.assertIsNone(model["apply_patch_tool_type"])
         self.assertEqual(model["experimental_supported_tools"], [])

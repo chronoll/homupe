@@ -1,11 +1,14 @@
-The factory explicitly selects `gpt-6.1-sol`, listed for ChatGPT-authenticated
-Codex in the [official model documentation](https://learn.chatgpt.com/docs/models).
-It stops if that model is unavailable; it does not select an API-billed fallback.
+The factory explicitly selects `gpt-5.6-sol`. A read-only authenticated model
+inventory on 2026-11-28 reported it as this runtime's visible default model.
+This is evidence for this runtime, not a general subscription availability claim.
+The factory stops if that model is unavailable; it does not select an API-billed
+fallback.
 
 `model-catalog.json` contains only that model's capability fields, selected through
-an explicit allowlist from the local Codex 0.148.0 CLI model metadata on 2026-11-28.
-No cache envelope, account fields, credentials, personalization, or downloaded
-instruction templates are included. The base instruction is factory-owned text.
+an explicit allowlist from the [official Codex 0.148.0 model catalog](https://github.com/openai/codex/blob/rust-v0.148.0/codex-rs/models-manager/models.json),
+verified against Git blob `3b6d62393e40291e20f5c9dfb6fe80c986e1712f`.
+No account fields, credentials, personalization, or downloaded instruction
+templates are included. The base instruction is factory-owned text.
 
 The image copies this catalog to `/opt/factory-model-catalog.json` as a read-only
 file. All three phases explicitly use it. It disables the built-in shell, patch,
