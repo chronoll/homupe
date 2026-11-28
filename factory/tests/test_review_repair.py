@@ -107,6 +107,7 @@ class ReviewRepairTests(unittest.TestCase):
         self.assertNotEqual(self.runtime.review_heads[0], self.runtime.review_heads[1])
         self.assertEqual(result["head_sha"], self.runtime.review_heads[1])
         self.assertEqual(self.state()["review_round"], 2)
+        self.assertEqual(self.state()["repair_kind"], "review")
         self.assertEqual(len(self.runner.pushes), 1)
         self.assertIn(result["head_sha"] + ":refs/heads/factory/issue-42", self.runner.pushes[0])
         self.assertEqual(len(self.github.drafts), 1)
@@ -148,7 +149,7 @@ class ReviewRepairTests(unittest.TestCase):
         self.assertEqual(self.model_phases(), ["plan", "implement", "review"])
         self.assert_not_published()
 
-    def test_failed_verification_has_no_automatic_fallback(self):
+    def test_untyped_verification_halt_has_no_automatic_fallback(self):
         for failure_round in (1, 2):
             with self.subTest(round=failure_round):
                 if failure_round == 2:

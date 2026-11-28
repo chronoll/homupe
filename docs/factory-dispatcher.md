@@ -1,10 +1,11 @@
-# Local factory dispatcher: shadow rollout
+# Local factory dispatcher
 
 The verification foundation and dispatcher from PRs #29 and #30 are merged into
 `staging`; those merges left `main` unchanged. The dispatcher processes one trusted
 Issue through Codex planning, implementation, independent checks and a fresh Codex
-review, then pushes a **draft PR to staging**. It does not merge, wait for remote
-CI, deploy, or claim that a protected Preview was checked. Those gates come next.
+review, then pushes a **draft PR to staging**. Explicit PR revision requests can
+update that same PR. The dispatcher does not merge, wait for remote CI, deploy,
+or claim that a protected Preview was checked. Those gates remain human work.
 
 ## Operate from GitHub
 
@@ -12,12 +13,18 @@ Routine operation uses GitHub; the user does not need to view the Mac, Terminal
 or Codex app. Create an open Issue as `chronoll` and add `factory:ready`. The
 watcher starts an eligible Issue on an idle poll, normally within about five
 minutes, then reports phase, last-check time, human-input reasons, findings and
-the resulting draft PR in the Issue's Factory status comment. See the current
-[Issue #35](https://github.com/chronoll/homupe/issues/35).
+the resulting draft PR in the Issue's Factory status comment. Status and bot
+notifications explicitly say whether the user needs to act, why, and the one
+relevant next action. A running automatic repair requires no user action.
+[Issue #35](https://github.com/chronoll/homupe/issues/35) has reached
+[Draft PR #40](https://github.com/chronoll/homupe/pull/40): its three remote CI
+jobs and Vercel deployment succeeded. The protected Preview screen has not been
+visually checked.
 
 Only an exact, single-line body in a **new, unedited comment by `chronoll`** is a
 command. No leading/trailing whitespace, quotes, code fences or accompanying
-prose is accepted. Closed Issues and PRs are rejected. A persisted comment-ID
+prose is accepted. These four controls apply to open Issues, not PRs; the PR
+revision command is described separately below. A persisted comment-ID
 claim precedes side effects; that ID is never executed again, including after
 an edit, restart, crash or uncertain response.
 
@@ -35,20 +42,73 @@ projected after that command exits; the displayed time is the last status
 projection, not an independent heartbeat. Control comments continue to be checked
 while the queue is stopped, so GitHub can resume it.
 
-For a human-input hold, read the actual reason/findings, update the Issue body
-with the missing facts or decision, then post a new `/factory retry` comment.
+Read the selected next action rather than treating every hold as a business
+question:
+
+| Reported action | Human step |
+| --- | --- |
+| Waiting or repairing: action unnecessary | Wait for the result; do not submit an answer or retry. |
+| A specific question | Add the missing fact/decision to the Issue body, then post a new `/factory retry`. An ordinary reply alone is not consumed as an answer. |
+| Technical repair budget exhausted | This is a code/verification problem, not a business decision. Retry only if another subscription-consuming attempt is wanted. |
+| Explicit stop | Keeping the factory stopped needs no action. `/factory resume` resumes only the queue; retry is a separate explicit decision for a held Issue. |
+| Authentication, environment, policy or uncertain publication | Ask the runtime maintainer to restore/reconcile it. Do not answer an invented question or blindly retry. |
+| Draft PR ready | Review its changes, current CI and Preview, or request a PR revision as below. |
+
 Retry is limited to `needs-human`: it preserves the old attempt, freezes the
-current Issue, and only clears a recoverable STOP after reconciliation. If a
-remote PR or Issue branch exists, retry is rejected. Review the existing PR;
-if it is unwanted, close the PR and remove its unwanted branch on GitHub first.
-Never retry an uncertain publication without reconciling its remote result.
-`resume` does not archive or automatically re-run a held attempt.
+current Issue, and only clears a recoverable STOP after reconciliation. For a
+fresh Issue attempt, an existing remote PR or Issue branch blocks retry. Review
+that PR, or close it and remove its unwanted branch on GitHub first. A held
+**PR revision** instead retains its recorded PR/head and request; Issue retry
+updates the same PR after validating that identity. Never retry uncertain
+publication without reconciling its remote result. `resume` does not archive or
+automatically re-run held attempts. Authentication, runtime, policy and
+publication failures require maintenance rather than a GitHub retry bypass.
 
 Human-input and completion notifications use bot comments mentioning
-`@chronoll` when the notification relay workflow is enabled on `main`. Delivery
-also depends on the user's GitHub notification settings. The new GitHub control
-and relay integration must be verified after deployment; until the default-branch
-relay and a real notification have been verified, do not claim notifications work.
+`@chronoll` through the relay workflow on `main`; a real notification has been
+verified on Issue #35. They distinguish no action, a concrete question, optional
+technical retry, maintenance and PR review. Email/push delivery also depends on
+the user's GitHub notification settings. After changing or reinstalling the
+default-branch relay, verify its delivery again before claiming it works.
+
+## Review and revise a Draft PR
+
+Open the PR linked from the Issue. Check its diff, remote CI and the Preview for
+the current commit. Local fixture/browser checks and a successful Vercel deploy
+do not prove the protected Preview screen was inspected.
+
+To request changes, `chronoll` posts a **new, unedited, top-level comment on that
+PR**, with the command first and a concrete request below it:
+
+```text
+/factory fix
+Describe the changes to make and their expected behavior.
+```
+
+An inline review comment, ordinary reply without the command, review submission or edited comment
+does not queue a revision. The original Issue must remain open, and the open PR
+must still be the factory-owned branch targeting this repository's staging.
+Each accepted comment ID is durably claimed once. The receipt says when it is
+queued; `revision-queued` means no user action is needed while it waits.
+
+The new attempt starts from the recorded PR head integrated with the current
+staging, preserving unmerged PR changes. It freezes the current Issue and the
+explicit revision request, then plans, implements, independently verifies and
+freshly reviews the resulting candidate. A merge conflict, changed remote head,
+changed Issue or failed guard stops for inspection. Only a fast-forward push of
+the reviewed candidate is allowed; no force push is used. A separate new Issue
+starts from staging and does not implicitly inherit an unmerged PR's code.
+
+After success the **same PR** is Draft again. Its original description is kept;
+updated review/verification evidence is added in a PR comment. Check CI and
+Preview again for the new commit. For another change, post a new `/factory fix`
+request on the PR. If a held revision asks a specific question, update the Issue
+body and use the Issue's `/factory retry` to repeat that same revision request.
+
+When satisfied, a human marks the PR ready for review and merges it into
+staging after the required checks, then checks staging's deployment. Main and
+production remain a separate human decision and production build. There is no
+automatic merge or promotion of a fixture Preview to production.
 
 The Mac must stay logged in, awake and online. If it goes offline, the last-check
 time in the Issue becomes stale and even `/factory status` cannot respond until
@@ -72,7 +132,8 @@ fake Docker executable. They cover the draft-PR path, failures, source/commit
 identity, stop/timeout cleanup, strict JSON, claims and publication uncertainty.
 They do not prove a real container or subscription login works. CI separately
 builds the Linux image and checks its boundaries and application verification,
-without model calls. A local image build and subscription-backed trial remain required.
+without model calls. A new installation still requires a local image build and
+subscription-backed trial; Issue #35 provides a real trial result for this setup.
 
 ## Runtime and cost
 
@@ -96,8 +157,10 @@ The CLI version is pinned to the locally checked interface in the Dockerfile.
 AI usage uses the ChatGPT subscription and its existing limits/settings. The code
 supplies no API key, buys no credits, and does not switch to API billing when
 rate-limited. An attempt starts Codex at most five times: one plan and up to two
-implementations and two fresh reviews. A technical review may trigger one
-bounded repair, with independent verification and review repeated. Missing
+implementations and two fresh reviews. A completed application-verification
+failure or technical review may trigger **one shared bounded repair** of the
+same candidate, with independent verification and review repeated. A repair
+spent on one kind of failure is not renewed for the other. Missing
 human facts, permissions or policy decisions stop for human input. The shared
 one-hour job deadline is not renewed by repair, and failed jobs are not
 automatically restarted. Each invocation can involve multiple inference requests and tool operations;
@@ -195,12 +258,17 @@ The parent creates a private commit and verifies its source equals the tested
 snapshot. A fresh Codex session, with its separate review authentication volume,
 reads a separate read-only snapshot, diff, Issue, plan and screenshots. It does
 not resume either earlier conversation. Its reviewed SHA must match.
-Technical change requests permit one bounded implementation repair followed by
-new independent verification and a fresh review. A second rejection, or a
-needs-human verdict, holds the job. Before publishing,
+Completed application-check failures and technical change requests share one
+bounded implementation repair followed by new independent verification and a
+fresh review. A second failed check/rejection holds the job as a technical
+limit; it does not ask for a business decision. A needs-human result holds for
+its specific missing fact/decision and does not start a speculative repair.
+Infrastructure, timeout, cleanup, policy and publication faults do not enter the
+technical-repair loop. Before publishing,
 the parent rechecks the Issue, STOP, unchanged staging SHA and clean candidate
-HEAD. It uses a normal
-push and `gh pr create --draft --base staging`; it never force-pushes or merges.
+HEAD. A fresh Issue uses a normal push and
+`gh pr create --draft --base staging`; a revision validates the recorded remote
+head and fast-forwards the same PR branch. Neither path force-pushes or merges.
 
 The outer container provides each phase's filesystem boundary: read-only root,
 read-only source for planning/review, writable source for implementation, and
@@ -215,7 +283,8 @@ unauthenticated administrative endpoints.
 Protected paths include workflows, factory policy/code, agent configuration,
 guidance, environment files and package manifests. Changes stop before local
 verification/publication and need a separate human-owned PR. The agent cannot
-change its own checks. Draft PRs contain the plan, review summary and SHA.
+change its own checks. New Draft PRs contain the plan, review summary and SHA;
+revisions preserve the original description and add updated evidence comments.
 Screenshots/full logs remain local; this increment does not upload them.
 Remote CI/Preview checks and human review/merge are still required.
 
@@ -279,8 +348,8 @@ python3 bin/factory stop
 `stop` sets local STOP and interrupts the supervised process/container.
 `factory:stop` is checked between phases and before publication. Use local stop
 to interrupt a running model immediately. Ctrl-C/SIGTERM, timeout, invalid output,
-failed tests, review rejection, changed Issue/base/head, or uncertain remote
-writes retain the job as `needs-human` and exit the loop. Container removal
+checks/review still failing after the shared repair, changed Issue/base/head,
+or uncertain remote writes retain the job as `needs-human` and exit the loop. Container removal
 failure also sets STOP. Inspect Docker before resuming; a killed host/daemon may
 leave a container requiring manual cleanup.
 
@@ -299,7 +368,9 @@ python3 bin/factory run 123 --execute
 
 `resume` only clears STOP. `retry` archives a needs-human attempt and permits a
 new, potentially usage-consuming attempt. Existing remote branches/PRs still
-block fresh attempts before AI starts. A hard crash leaving a nonterminal state
+block fresh attempts before AI starts. Explicit held revisions retain and
+revalidate their existing PR rather than creating another one. A hard crash
+leaving a nonterminal state
 requires manual inspection; retry deliberately does not reset it. State and
 worktrees remain available and are not pruned automatically in this increment.
 
