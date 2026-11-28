@@ -1,0 +1,14 @@
+{
+  "repository": "chronoll/homupe",
+  "base": "staging",
+  "trusted_author": "chronoll",
+  "auto_merge": false,
+  "image": "homupe-factory:local",
+  "verify": [
+    ["npm", "ci"],
+    ["npm", "run", "check"],
+    ["npm", "run", "build:fixtures"],
+    ["npm", "run", "test:e2e"]
+  ],
+  "ui_paths": ["src/app/**", "src/components/**", "public/**"]
+}

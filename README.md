@@ -2,6 +2,8 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 Use Node.js 22. Credential-free checks, fixture data, browser acceptance and the
 Vercel Preview workflow are documented in [Factory verification](docs/factory-verification.md).
+The [local factory dispatcher](docs/factory-dispatcher.md) adds an opt-in,
+subscription-backed Issue-to-draft-PR path with offline contract tests.
 
 ## Getting Started
 

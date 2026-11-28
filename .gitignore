@@ -55,3 +55,9 @@ contents-*.png
 .playwright-cli/
 /playwright-report/
 /test-results/
+
+# Local factory journal, isolated source snapshots and command logs
+/.factory-state/
+/factory-container-results/
+__pycache__/
+*.pyc
