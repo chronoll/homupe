@@ -6,6 +6,55 @@ Issue through Codex planning, implementation, independent checks and a fresh Cod
 review, then pushes a **draft PR to staging**. It does not merge, wait for remote
 CI, deploy, or claim that a protected Preview was checked. Those gates come next.
 
+## Operate from GitHub
+
+Routine operation uses GitHub; the user does not need to view the Mac, Terminal
+or Codex app. Create an open Issue as `chronoll` and add `factory:ready`. The
+watcher starts an eligible Issue on an idle poll, normally within about five
+minutes, then reports phase, last-check time, human-input reasons, findings and
+the resulting draft PR in the Issue's Factory status comment. See the current
+[Issue #35](https://github.com/chronoll/homupe/issues/35).
+
+Only an exact, single-line body in a **new, unedited comment by `chronoll`** is a
+command. No leading/trailing whitespace, quotes, code fences or accompanying
+prose is accepted. Closed Issues and PRs are rejected. A persisted comment-ID
+claim precedes side effects; that ID is never executed again, including after
+an edit, restart, crash or uncertain response.
+
+| Entire comment body | Effect |
+| --- | --- |
+| `/factory status` | Refresh the Issue's public status. |
+| `/factory stop` | Request a global queue/active-job stop at a control check. |
+| `/factory retry` | Explicitly archive and retry this Issue's `needs-human` attempt, using its current body and subscription usage. |
+| `/factory resume` | Clear a recoverable queue STOP; held jobs remain held. |
+
+Idle control checks run about every five minutes; running work checks controls
+about every 30 seconds and at phase boundaries. Stop is not an immediate kill,
+and response time is not guaranteed. Status replies during a long command are
+projected after that command exits; the displayed time is the last status
+projection, not an independent heartbeat. Control comments continue to be checked
+while the queue is stopped, so GitHub can resume it.
+
+For a human-input hold, read the actual reason/findings, update the Issue body
+with the missing facts or decision, then post a new `/factory retry` comment.
+Retry is limited to `needs-human`: it preserves the old attempt, freezes the
+current Issue, and only clears a recoverable STOP after reconciliation. If a
+remote PR or Issue branch exists, retry is rejected. Review the existing PR;
+if it is unwanted, close the PR and remove its unwanted branch on GitHub first.
+Never retry an uncertain publication without reconciling its remote result.
+`resume` does not archive or automatically re-run a held attempt.
+
+Human-input and completion notifications use bot comments mentioning
+`@chronoll` when the notification relay workflow is enabled on `main`. Delivery
+also depends on the user's GitHub notification settings. The new GitHub control
+and relay integration must be verified after deployment; until the default-branch
+relay and a real notification have been verified, do not claim notifications work.
+
+The Mac must stay logged in, awake and online. If it goes offline, the last-check
+time in the Issue becomes stale and even `/factory status` cannot respond until
+it returns. There is currently no independent automatic offline alert. The
+remaining local setup and CLI sections are for administrators, not routine use.
+
 ## Offline trial
 
 From the repository root, with Python 3.9 or newer:
@@ -46,11 +95,16 @@ The CLI version is pinned to the locally checked interface in the Dockerfile.
 
 AI usage uses the ChatGPT subscription and its existing limits/settings. The code
 supplies no API key, buys no credits, and does not switch to API billing when
-rate-limited. An attempt starts Codex for up to three phases (plan,
-implementation, review), with a one-hour job deadline and no automatic retries.
-Each phase can involve multiple inference requests and tool operations;
+rate-limited. An attempt starts Codex at most five times: one plan and up to two
+implementations and two fresh reviews. A technical review may trigger one
+bounded repair, with independent verification and review repeated. Missing
+human facts, permissions or policy decisions stop for human input. The shared
+one-hour job deadline is not renewed by repair, and failed jobs are not
+automatically restarted. Each invocation can involve multiple inference requests and tool operations;
 subscription consumption depends on the Issue, rather than a fixed request count.
-A watcher tick processes at most one job. Jev is not used. CI makes no AI calls.
+A watcher tick processes at most one job. Jev is not used; adding any Jev call
+requires explicit prior approval of purpose, data, call count and estimated cost.
+CI makes no AI calls.
 
 ## Setup before a live trial
 
@@ -141,7 +195,9 @@ The parent creates a private commit and verifies its source equals the tested
 snapshot. A fresh Codex session, with its separate review authentication volume,
 reads a separate read-only snapshot, diff, Issue, plan and screenshots. It does
 not resume either earlier conversation. Its reviewed SHA must match.
-Changes/needs-human or any must finding stops the attempt. Before publishing,
+Technical change requests permit one bounded implementation repair followed by
+new independent verification and a fresh review. A second rejection, or a
+needs-human verdict, holds the job. Before publishing,
 the parent rechecks the Issue, STOP, unchanged staging SHA and clean candidate
 HEAD. It uses a normal
 push and `gh pr create --draft --base staging`; it never force-pushes or merges.
@@ -195,13 +251,17 @@ python3 -B -m factory.launchd stop
 The Mac must be logged into this user account, awake, online, and able to use its
 container VM and saved CLI authentication. The Codex app and an open Terminal
 are not required. When enabled, the watcher loads at the user's next login.
-An explicit stop disables it across logins until an explicit start.
+The administrator's local LaunchAgent stop disables it across logins until an
+explicit local start. This differs from `/factory stop`, which leaves control
+polling available for GitHub resume commands.
 
 `start` clears STOP under the controller lock, enables/loads the LaunchAgent and
 requests a check without killing an existing worker. `stop` sets STOP first,
 then disables/unloads the LaunchAgent and waits a bounded time for cleanup.
 Stop the watcher before stopping the VM. A job failure or detected crash sets
-STOP; the watcher does not retry the failed Issue or update its own code.
+STOP; the watcher does not restart the failed Issue or update its own code.
+After review/reconciliation, a trusted `/factory retry` comment is the ordinary
+user's explicit retry path.
 
 The runtime directory keeps `watch.log` and its rotated `watch.log.1`,
 `watch-vm.log`, `launchd.stdout.log` and `launchd.stderr.log`. The last poll result

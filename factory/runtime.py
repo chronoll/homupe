@@ -189,9 +189,44 @@ class DockerRuntime:
         return self.codex(workspace, evidence, prompt, log, schema, "codex", phase == "plan")
 
     def verify(self, workspace, commands, log_dir):
+        from factory.github_control import safe_text
+
+        labels = {("npm", "ci"): "npm ci",
+                  ("npm", "run", "check"): "npm run check",
+                  ("npm", "run", "build:fixtures"): "npm run build:fixtures",
+                  ("npm", "run", "test:e2e"): "npm run test:e2e"}
+        diagnostic = re.compile(
+            r"\b(?:error|errors|fail|failed|failure|type|typeerror|lint|eslint)\b|\bTS[0-9]{3,6}\b",
+            re.IGNORECASE)
         for index, argv in enumerate(commands):
-            self.call(workspace, argv, timeout=1200,
-                      log=Path(log_dir) / ("verify-%s.log" % index))
+            log = Path(log_dir) / ("verify-%s.log" % index)
+            try:
+                self.call(workspace, argv, timeout=1200, log=log)
+            except Halt as error:
+                store = getattr(self.runner, "store", None)
+                if (store and store.stopped()) or str(error) == "local STOP requested":
+                    raise
+                selected = []
+                try:
+                    # Inspect a bounded tail and select diagnostics rather than
+                    # publishing stdout or a whole fixture/test transcript.
+                    with log.open("rb") as stream:
+                        stream.seek(max(0, log.stat().st_size - 512 * 1024))
+                        tail = stream.read(512 * 1024).decode("utf-8", errors="replace")
+                    for line in tail.splitlines():
+                        if diagnostic.search(line):
+                            line = line.strip()[:1000]
+                            if line not in selected:
+                                selected.append(line)
+                            if len(selected) == 8:
+                                break
+                except OSError:
+                    pass
+                summary = safe_text(" | ".join(selected) if selected else str(error), 600)
+                if len(summary) > 600:  # Markdown escaping can expand safe_text.
+                    summary = summary[:599].rstrip("\\") + "…"
+                command = labels.get(tuple(argv), "verification step " + str(index + 1))
+                raise Halt("検証失敗: " + command + " | " + (summary or "診断を取得できませんでした。")) from error
 
     def review(self, workspace, evidence, prompt, log):
         # A fresh session and a read-only source snapshot, not the implementer's

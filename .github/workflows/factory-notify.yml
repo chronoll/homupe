@@ -1,0 +1,47 @@
+name: Factory notifications
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  notify:
+    if: >-
+      ${{ github.repository == 'chronoll/homupe'
+          && github.actor == 'chronoll'
+          && github.event.sender.login == 'chronoll'
+          && github.event.comment.user.login == 'chronoll'
+          && github.event.issue.user.login == 'chronoll'
+          && !github.event.issue.pull_request
+          && startsWith(github.event.comment.body, '<!-- homupe-factory-event:v1 -->') }}
+    # Serialize milestones and same-key re-deliveries after the identity gate.
+    concurrency:
+      group: factory-notify-${{ github.repository }}-${{ github.event.issue.number }}
+      queue: max
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Read the trusted relay from the default-branch event commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          sparse-checkout: .factory/notify.cjs
+          sparse-checkout-cone-mode: false
+      - name: Validate the event and notify once
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          debug: false
+          retries: 0
+          script: |
+            try {
+              const { notify } = require('./.factory/notify.cjs');
+              await notify({ github, context });
+            } catch {
+              core.setFailed('Factory notification delivery failed; no automatic retry.');
+            }

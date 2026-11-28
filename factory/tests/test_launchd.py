@@ -15,6 +15,13 @@ from factory import launchd
 from factory.core import Busy, Halt
 
 
+class FakeFactory:
+    def __init__(self, runtime):
+        self.runtime = runtime
+        self.sync_controls = Mock(return_value={"status": "synced"})
+        self.control = SimpleNamespace(queue_failure=Mock())
+
+
 class ServiceTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -39,7 +46,8 @@ class ServiceTests(unittest.TestCase):
         self.ctl_mock = controller.start()
         self.addCleanup(controller.stop)
         self.agent_runtime = SimpleNamespace(orphan_containers=Mock(return_value=[]), remove_orphans=Mock())
-        factory = patch.object(launchd, "Factory", return_value=SimpleNamespace(runtime=self.agent_runtime))
+        self.fake_factory = FakeFactory(self.agent_runtime)
+        factory = patch.object(launchd, "Factory", return_value=self.fake_factory)
         self.factory_mock = factory.start()
         self.addCleanup(factory.stop)
         docker = patch.object(launchd.shutil, "which", return_value="/fake/docker")
@@ -238,19 +246,74 @@ class ServiceTests(unittest.TestCase):
         self.assertTrue(self.service.store.stopped())
         self.agent_runtime.orphan_containers.assert_not_called()
 
-    def test_paused_tick_never_wakes_vm_or_contacts_network_and_polls_once(self):
+    def test_paused_tick_still_synchronizes_github_controls_without_waking_vm(self):
         self.service.store.stop()
         self.assertEqual(self.service.tick(), 0)
         self.runner_class.assert_not_called()
-        self.factory_mock.assert_not_called()
+        self.factory_mock.assert_called_once_with(self.repo)
+        self.fake_factory.sync_controls.assert_called_once_with()
         self.assert_poll_once()
         self.assertTrue(self.service.store.stopped())
         self.assertEqual(stat.S_IMODE((self.runtime / "watch.log").stat().st_mode), 0o600)
 
     def test_healthy_vm_tick_checks_docker_then_polls_once(self):
         self.assertEqual(self.service.tick(), 0)
+        self.fake_factory.sync_controls.assert_called_once_with()
         self.runner.run.assert_called_once_with(["docker", "info"], timeout=15)
         self.assert_poll_once()
+
+    def test_github_resume_clears_stop_before_cold_vm_start_and_poll(self):
+        self.service.store.stop()
+        self.vm_profile()
+        order = []
+        def resume():
+            order.append("controls")
+            (self.service.store.root / "STOP").unlink()
+            return {"status": "synced"}
+        def run(argv, **_kwargs):
+            self.assertFalse(self.service.store.stopped())
+            order.append(argv[0])
+            if argv == ["docker", "info"]:
+                raise Halt("VM stopped")
+            return ""
+        self.fake_factory.sync_controls.side_effect = resume
+        self.runner.run.side_effect = run
+        self.dispatch_mock.side_effect = lambda _argv: order.append("poll") or 0
+        self.assertEqual(self.service.tick(), 0)
+        self.assertEqual(order, ["controls", "docker", "colima", "poll"])
+        self.assertFalse(self.service.store.stopped())
+        self.assert_poll_once()
+
+    def test_github_stop_prevents_vm_start_in_the_same_tick(self):
+        def stop():
+            self.service.store.stop()
+            return {"status": "synced"}
+        self.fake_factory.sync_controls.side_effect = stop
+        self.assertEqual(self.service.tick(), 0)
+        self.runner_class.assert_not_called()
+        self.assertTrue(self.service.store.stopped())
+        self.assert_poll_once()
+
+    def test_busy_control_sync_skips_without_stopping_or_waking_vm(self):
+        for outcome in (Busy("active dispatcher"), {"status": "busy"}):
+            with self.subTest(outcome=outcome):
+                self.fake_factory.sync_controls.side_effect = outcome if isinstance(outcome, Busy) else None
+                self.fake_factory.sync_controls.return_value = outcome
+                self.assertEqual(self.service.tick(), 0)
+                self.assertFalse(self.service.store.stopped())
+                self.assertEqual(json.loads((self.service.store.root / "watch.json").read_text())["status"], "busy")
+        self.runner_class.assert_not_called()
+        self.dispatch_mock.assert_not_called()
+
+    def test_control_read_failure_is_retryable_without_vm_or_new_stop(self):
+        self.fake_factory.sync_controls.side_effect = Halt("GitHub unavailable")
+        self.assertEqual(self.service.tick(), 1)
+        self.assertFalse(self.service.store.stopped())
+        self.runner_class.assert_not_called()
+        self.dispatch_mock.assert_not_called()
+        status = json.loads((self.service.store.root / "watch.json").read_text())
+        self.assertEqual(status["status"], "error")
+        self.assertEqual(status["reason"], "GitHub control synchronization failed")
 
     def test_missing_vm_profile_stops_before_dispatch_or_vm_creation(self):
         self.runner.run.side_effect = Halt("VM stopped")
@@ -259,6 +322,7 @@ class ServiceTests(unittest.TestCase):
         self.dispatch_mock.assert_not_called()
         self.assertTrue(self.service.store.stopped())
         self.assertEqual(json.loads((self.service.store.root / "watch.json").read_text())["status"], "needs-human")
+        self.fake_factory.control.queue_failure.assert_called_once_with("runtime-unavailable")
 
     def test_known_vm_profile_uses_fixed_limits_and_polls_once_after_start(self):
         self.vm_profile()
@@ -282,6 +346,28 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(self.service.tick(), 1)
         self.assertTrue(self.service.store.stopped())
         self.dispatch_mock.assert_not_called()
+        self.fake_factory.control.queue_failure.assert_called_once_with("runtime-unavailable")
+
+    def test_runtime_failure_notification_follows_stop_and_uses_only_fixed_code(self):
+        self.runner.run.side_effect = OSError("private host path /Users/owner/runtime failed")
+        def notify(code):
+            self.assertTrue(self.service.store.stopped())
+            self.assertEqual(code, "runtime-unavailable")
+        self.fake_factory.control.queue_failure.side_effect = notify
+        self.assertEqual(self.service.tick(), 1)
+        self.fake_factory.control.queue_failure.assert_called_once_with("runtime-unavailable")
+        self.dispatch_mock.assert_not_called()
+
+    def test_runtime_notification_failure_keeps_stop_and_does_not_retry_vm(self):
+        self.vm_profile()
+        self.runner.run.side_effect = [Halt("VM stopped"), Halt("VM could not start")]
+        self.fake_factory.control.queue_failure.side_effect = Halt("GitHub notification unavailable")
+        self.assertEqual(self.service.tick(), 1)
+        self.assertTrue(self.service.store.stopped())
+        self.assertEqual(self.runner.run.call_count, 2)
+        self.fake_factory.control.queue_failure.assert_called_once_with("runtime-unavailable")
+        self.dispatch_mock.assert_not_called()
+        self.assertEqual(json.loads((self.service.store.root / "watch.json").read_text())["status"], "needs-human")
 
     def test_short_custom_colima_home_preserves_existing_vm_startup(self):
         colima_home = self.runtime / "c"

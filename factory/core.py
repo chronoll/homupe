@@ -141,6 +141,8 @@ class Runner:
     def __init__(self, store=None):
         self.store = store
         self.deadline = None
+        self.control_check = None
+        self._next_control_check = 0
 
     def run(self, argv, cwd=None, env=None, stdin=None, timeout=60, log=None, combine=False):
         if self.store:
@@ -165,6 +167,11 @@ class Runner:
                         self.store.check_stop()
                     if time.monotonic() >= deadline:
                         raise Halt("command timed out: " + str(argv[0]))
+                    if self.control_check and time.monotonic() >= self._next_control_check:
+                        self._next_control_check = time.monotonic() + 30
+                        self.control_check(deadline)
+                        if self.store:
+                            self.store.check_stop()
                     if os.fstat(output.fileno()).st_size + os.fstat(errors.fileno()).st_size > MAX_OUTPUT:
                         raise Halt("command output exceeds 32 MiB")
                     time.sleep(0.05)
