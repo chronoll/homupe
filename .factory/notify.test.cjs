@@ -63,6 +63,18 @@ function client(pages = []) {
   return { github, calls, status, pages };
 }
 
+function statusBody(action, lines = []) {
+  return STATUS_PREFIX + `<!-- homupe-factory-action:v1:${action} -->\n`
+    + ["Factory: Issue #42", ...lines].join("\n");
+}
+
+async function notification(kind, body) {
+  const api = client();
+  api.status.body = body;
+  await notify({ github: api.github, context: context(event(kind)) });
+  return api.calls.create[0].body;
+}
+
 test("accepts only the three defined milestone schemas", () => {
   for (const kind of ["started", "needs-human", "draft-complete"]) {
     const data = event(kind);
@@ -232,6 +244,132 @@ test("posts fixed Japanese mentions and validated links for all milestones exact
       assert.equal(api.calls.create.length, 1);
     });
   }
+});
+
+test("processing notification makes the absence of required user action clear", async () => {
+  const body = await notification("started", statusBody("wait", [
+    "状態: 検証エラーを自動修正中。あなたの操作は不要です。",
+    "理由: 内部の診断内容をここへ展開しない。",
+  ]));
+  assert.ok(body.includes("あなたの操作は不要です"));
+  assert.ok(body.includes("概要: 検証エラーを自動修正中"));
+  assert.ok(!body.includes("内部の診断内容"));
+  assert.ok(!body.includes("/factory retry"));
+});
+
+test("technical repair limit requests an optional retry rather than a business answer", async () => {
+  const body = await notification("needs-human", statusBody("retry", [
+    "状態: 技術修正の上限に到達", "理由: 自動修正上限に達し、型検査がまだ失敗しています。",
+    "確認事項: この行を業務判断の質問として扱わない。",
+  ]));
+  for (const text of ["技術修正の上限", "業務上の判断や回答は不要", "追加の試行を希望する場合だけ",
+                      "概要: 自動修正上限に達し、型検査がまだ失敗", "\n/factory retry\n"]) {
+    assert.ok(body.includes(text), text);
+  }
+  assert.ok(!body.includes("本文に追記"));
+  assert.ok(!body.includes("この行を業務判断"));
+});
+
+test("other retryable stops do not invent a technical repair limit or a business-answer claim", async () => {
+  for (const reason of ["stagingの基点が更新されました。", "Issue本文が変更されました。",
+                        "試行全体の時間上限に到達しました。", "ユーザーから停止が要求されました。"] ) {
+    const body = await notification("needs-human", statusBody("retry", ["理由: " + reason]));
+    assert.ok(body.includes("この試行は停止しています"));
+    assert.ok(body.includes(reason));
+    assert.ok(body.includes("サブスク利用枠を使った追加の試行を希望する場合だけ"));
+    assert.ok(body.includes("\n/factory retry\n"));
+    assert.ok(!body.includes("技術修正の上限に達して"));
+    assert.ok(!body.includes("業務上の判断や回答は不要"));
+  }
+});
+
+test("answer notification includes the concrete question and exact GitHub next steps", async () => {
+  const body = await notification("needs-human", statusBody("answer", [
+    "確認事項: 公開日は12月1日と12月8日のどちらですか？",
+    "理由: 計画を確定するために公開日が必要です。",
+  ]));
+  assert.ok(body.includes("回答が必要です"));
+  assert.ok(body.includes("確認事項: 公開日は12月1日と12月8日のどちらですか？"));
+  assert.ok(body.includes("回答をIssue本文に追記した後、新しいコメント"));
+  assert.ok(body.includes("\n/factory retry\n"));
+  assert.ok(!body.includes("技術修正の上限"));
+});
+
+test("maintenance notification asks for recovery without suggesting a blind retry", async () => {
+  const body = await notification("needs-human", statusBody("maintenance", [
+    "理由: 実装用のChatGPT認証を復旧する必要があります。",
+  ]));
+  for (const text of ["実行環境や認証の復旧が必要", "仕様判断や回答は不要",
+                      "復旧案内に沿って対応", "概要: 実装用のChatGPT認証"]) {
+    assert.ok(body.includes(text), text);
+  }
+  assert.ok(!body.includes("/factory retry"));
+  assert.ok(!body.includes("本文に追記"));
+});
+
+test("completed draft notification asks for human Checks and Preview review", async () => {
+  const body = await notification("draft-complete", statusBody("review", [
+    "レビュー概要: 空表示の修正とPC・モバイル検証が完了しました。",
+  ]));
+  assert.ok(body.includes("人によるPRの確認が必要"));
+  assert.ok(body.includes("ChecksとPreviewを確認"));
+  assert.ok(body.includes("概要: 空表示の修正とPC・モバイル検証"));
+  assert.ok(body.includes("https://github.com/chronoll/homupe/pull/52"));
+  assert.ok(!body.includes("/factory retry"));
+});
+
+test("legacy or misplaced action markers fall back to reading status without inferring a retry", async () => {
+  for (const body of [
+    STATUS_PREFIX + "Factory: Issue #42\n理由: 古い状態です。",
+    STATUS_PREFIX + "\n<!-- homupe-factory-action:v1:retry -->\n理由: 位置が違う。",
+    STATUS_PREFIX + "> <!-- homupe-factory-action:v1:retry -->\n理由: 引用されたマーカー。",
+    STATUS_PREFIX + "<!-- homupe-factory-action:v2:retry -->\n理由: 未対応の版。",
+    statusBody("unknown", ["理由: 未対応の操作。"]),
+  ]) {
+    const result = await notification("needs-human", body);
+    assert.ok(result.includes("必要な操作を状態コメントで確認"));
+    assert.ok(!result.includes("/factory retry"));
+    assert.ok(!result.includes("業務上の判断や回答は不要"));
+  }
+});
+
+test("a queued old milestone uses the current action instead of contradicting it", async () => {
+  const question = await notification("started", statusBody("answer", ["確認事項: 対象期間はいつですか？"]));
+  assert.ok(question.includes("回答が必要です"));
+  assert.ok(!question.includes("あなたの操作は不要です"));
+  const running = await notification("needs-human", statusBody("wait", ["状態: 追加の技術修正中"]));
+  assert.ok(running.includes("あなたの操作は不要です"));
+  assert.ok(!running.includes("/factory retry"));
+});
+
+test("selected question is bounded, escaped and cannot add mentions, HTML, links or fences", async () => {
+  const body = await notification("needs-human", statusBody("answer", [
+    "確認事項: @outsider <img src=x> [link](https://bad.example/private) ``` \u0000\u202e" + "あ".repeat(400),
+    "生ログ: PRIVATE-RAW-LOG-MUST-NOT-APPEAR",
+  ]));
+  const question = body.split("\n").find((line) => line.startsWith("確認事項: "));
+  assert.ok(question.includes("＠outsider"));
+  assert.ok(!question.includes("@outsider"));
+  assert.ok(question.includes("\\<img"));
+  assert.ok(question.includes("\\[link\\]"));
+  assert.ok(!question.includes("https://bad.example"));
+  assert.ok(!/[\p{Cc}\p{Cf}\p{Cs}]/u.test(question));
+  const visible = question.slice("確認事項: ".length).replace(/\\([\\`*_~\[\]<>#])/g, "$1");
+  assert.equal(Array.from(visible).length, 300);
+  assert.ok(visible.endsWith("…"));
+  assert.equal(body.match(/^```$/gm).length, 2, "only the fixed command fence is active");
+  assert.equal(body.match(/@[A-Za-z0-9_-]+/g).length, 1, "only the fixed owner mention is active");
+  assert.ok(!body.includes("PRIVATE-RAW-LOG-MUST-NOT-APPEAR"));
+});
+
+test("selected summary redacts credential patterns and local paths as an extra boundary", async () => {
+  const body = await notification("needs-human", statusBody("retry", [
+    "理由: GH_TOKEN=ghp_TESTPRIVATEVALUE1234567890123456 /Users/private-owner/secret-file の検査が失敗。",
+  ]));
+  assert.ok(!body.includes("ghp_TESTPRIVATEVALUE"));
+  assert.ok(!body.includes("private-owner"));
+  assert.ok(body.includes("認証情報は非表示"));
+  assert.ok(body.includes("ローカルパスは非表示"));
 });
 
 test("paginates through earlier forged markers and accepts only the exact bot marker", async () => {
